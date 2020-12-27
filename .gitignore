@@ -1,0 +1,19 @@
+# Vscode
+.vscode
+
+# Python
+.venv
+__pycache__
+.pyc
+
+# CMake
+build
+
+# External sources
+external
+
+# Datasets
+/data
+
+# Experiments
+exp

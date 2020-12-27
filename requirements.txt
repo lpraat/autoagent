@@ -1,0 +1,12 @@
+torch
+torchvision
+numpy
+matplotlib
+opencv-python
+scikit-learn
+xmltodict
+PyYAML
+tqdm
+tensorboard
+pandas
+seaborn

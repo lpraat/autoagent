@@ -1,0 +1,69 @@
+# Model Structure
+version: 'v5'
+mult_c: 0.5
+mult_d: 0.33
+act: 'hswish'  # leaky, hswish
+conv: 'conv'
+init_biases: True
+
+# Optimization
+reduction: 'mean'
+loc_w: 0.05
+det_w: 1
+cls_w: 0.125
+ciou_ratio: 1
+optim: 'sgd'
+warmup: 3
+num_epochs: 300
+init_lr: 0.01
+final_lr: 0.002
+warmup_momentum: 0.8
+momentum: 0.937
+weight_decay: 0.0005
+balance: [0.4, 1, 4]  # Large, medium, small
+ema_decay: 0.9999
+ema_exp_d: 2000
+ema_mode: 'exp'
+
+# Eval
+confidence_thresh: 0.001
+nms_thresh: 0.4
+
+# Img
+augments: ['delta_bright', 'hflip']
+mosaic_prob: 1
+mosaic_delta: 0.1
+mosaic_scale: 0.5
+mosaic_translate: 0.1
+
+# Target
+anchor_priors: [
+  [[10, 13], [16, 30], [33, 23]],
+  [[30, 61], [62, 45], [59, 119]],
+  [[116, 90], [156, 198], [373, 326]]
+]
+steps: [32, 16, 8]
+mode: 'mult'
+mult_thresh: [4, 4, 4]
+bbox_fn: 'sigmoid'
+# mode: 'iou'
+# iou_thresh: [0.2, 0.2, 0.2]
+
+
+cls_names: [
+  'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
+  'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
+  'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
+  'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
+  'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
+  'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
+  'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
+  'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
+  'hair drier', 'toothbrush'
+]
+
+# cls_names: [
+#   'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat',
+#   'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person',
+#   'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'
+# ]
