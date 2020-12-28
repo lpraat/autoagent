@@ -2,6 +2,7 @@ import math
 import torch
 import torch.nn as nn
 
+from typing import List
 from autoagent.models.yolo.layers import (
     Focus, Conv, CSPResidualBlock, Bottleneck, SPP, CSPBottleneckBlock
 )
@@ -29,13 +30,13 @@ class YoloBackbone(nn.Module):
         self.cspres3 = CSPResidualBlock(get_c(512), get_c(512), get_d(9), activation=act, conv=conv)
         self.c4 = Conv(get_c(512), get_c(1024), 3, 2, activation=act)
 
-    def forward(self, x):
+    def forward(self, x) -> List[torch.Tensor]:
         x = self.f1(x)
         x = self.cspres1(self.c1(x))
         x_s = self.cspres2(self.c2(x))
         x_m = self.cspres3(self.c3(x_s))
         x_l = self.c4(x_m)
-        return x_l, x_m, x_s
+        return [x_l, x_m, x_s]
 
 
 class YoloHead(nn.Module):
@@ -80,8 +81,8 @@ class YoloHead(nn.Module):
             x[:, 4:] = -5
             l.bias = nn.Parameter(x.view(-1), requires_grad=True)
 
-    def forward(self, x):
-        x_l, x_m, x_s = x
+    def forward(self, x: List[torch.Tensor]) -> List[torch.Tensor]:
+        x_l, x_m, x_s = x[0], x[1], x[2]
 
         # SPP
         x = self.spp(x_l)

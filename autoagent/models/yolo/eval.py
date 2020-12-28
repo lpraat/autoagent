@@ -73,8 +73,6 @@ def eval(yolo, dloader, batch_size, aggregate, epoch, confidence_thresh, nms_thr
 
                 if img_bboxes.shape[0] > 0:
                     img_bboxes = non_max_suppression(img_bboxes, iou_thresh=nms_thresh)
-                    img_bboxes[:, 4] *= img_bboxes[:, 6]
-                    img_bboxes = img_bboxes[:, :6]
 
                     for img_bbox in img_bboxes:
                         # [img_id, xmin, ymin, xmax, ymax, conf, cls]

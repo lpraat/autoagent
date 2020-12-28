@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import random
 
 from autoagent.models.yolo.layers import Conv
 from autoagent.utils.vision_utils import compute_generalized_iou
@@ -38,6 +37,8 @@ class Yolo():
         if self.params['init_biases']:
             self.model.head.init_biases()
 
+        self.det_cache = None
+
     def __call__(self, *args, **kwargs):
         return self.model(*args, **kwargs)
 
@@ -71,7 +72,6 @@ class Yolo():
 
     def _load_original_v5_weights(self, v5_state_dict):
         keys = list(self.state_dict().keys())
-        v5_keys = v5_state_dict.keys()
 
         corrected_state_dict = {}
         idx = 0
@@ -91,9 +91,19 @@ class Yolo():
             elif t in [nn.Hardswish, nn.LeakyReLU]:
                 m.inplace = True
 
-    def detect(self, x, conf_thresh, with_ids=False):
-        # Populate detections
+    @torch.no_grad()
+    def detect(self, x, conf_thresh, use_cache=False, with_ids=False):
+        # Build prediction grid
         num_anchors = len(self.params['anchor_priors'])
+        img_dims = (x.shape[2], x.shape[3])
+
+        if self.det_cache is None:
+            aux_grids = []
+            steps = []
+            anchor_priors = []
+        else:
+            aux_grids, steps, anchor_priors = self.det_cache
+
         preds = self(x)
         det_grids = []
         for i in range(3):
@@ -101,20 +111,30 @@ class Yolo():
             pred_grid = preds[i].view(
                 preds[i].shape[0], num_anchors, 5+self.params['num_cls'], gy, gx
             ).permute(0, 1, 3, 4, 2).contiguous()
-            det_grids.append(pred_grid)
+            det_grids.append(pred_grid.clone())
+
+            if self.det_cache is None:
+                # Auxiliary grid
+                grid_y, grid_x = torch.meshgrid([torch.arange(gy), torch.arange(gx)])
+                aux_grids.append(torch.stack([grid_x, grid_y], dim=2).view((1, 1, gy, gx, 2)).to(preds[i].device))
+
+                # Steps
+                steps.append(torch.tensor([img_dims[0] / gy, img_dims[1] / gx], dtype=torch.float32).to(preds[i].device))
+
+                # Anchor priors
+                anchor_priors.append(torch.from_numpy(self.params['anchor_priors'][2-i]).view(1, num_anchors, 1, 1, 2).to(preds[i].device))
+
+        if use_cache and self.det_cache is None:
+            self.det_cache = (aux_grids, steps, anchor_priors)
 
         # Retrieve bboxes from prediction grid
-        img_dims = (x.shape[2], x.shape[3])
-        bboxes = torch.cat([
-            compute_final_bboxes(
-                img_dims, self.params['num_cls'], torch.from_numpy(self.params['anchor_priors'][2-i]).cuda(),
-                det_grids[i], self.params['bbox_fn'], confidence_thresh=conf_thresh, from_preds=True, with_ids=with_ids
-            ) for i in range(3)
-        ], dim=0)
+        bboxes = compute_final_bboxes(det_grids, conf_thresh, anchor_priors, aux_grids, steps,
+                                      with_ids=with_ids, bbox_fn=self.params['bbox_fn'])
         return bboxes
 
+
     def get_loss(self, preds, targets):
-        # assumption: targets and preds elements are on same device
+        # Assumption: targets and preds elements are on same device
         device = preds[0].device
         loss_loc = torch.zeros(1, device=device)
         loss_det = torch.zeros(1, device=device)

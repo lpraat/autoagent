@@ -35,7 +35,6 @@ class Resize(Transform):
         self.fill_color = np.array([127, 127, 127], dtype=np.uint8)
 
     def __call__(self, x):
-        x = x.copy()
         h, w, _ = x.shape
 
         # Find target ratio
@@ -62,7 +61,7 @@ class Resize(Transform):
                 d_h1, d_h2 = r, r+1
 
             x = cv2.resize(x, (t_w, t_h))
-            new_img = np.zeros(self.size + (3,), dtype=x.dtype) + self.fill_color
+            new_img = np.full(self.size + (3,), self.fill_color, dtype=x.dtype)
 
             # Insert image
             new_img[d_h1:self.size[0]-d_h2, d_w1:self.size[1]-d_w2, :] = x

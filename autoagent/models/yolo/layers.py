@@ -31,10 +31,7 @@ class Conv(nn.Module):
             self.activation.inplace = True
 
     def forward(self, x):
-        x = self.conv(x)
-        x = self.norm(x)
-        x = self.activation(x)
-        return x
+        return self.activation(self.norm(self.conv(x)))
 
 
 class Bottleneck(nn.Module):
@@ -50,16 +47,12 @@ class Bottleneck(nn.Module):
 class BottleneckStack(nn.Module):
     def __init__(self, in_c, hid_c, out_c, stack_size, activation, conv):
         super().__init__()
-        self.bottlenecks = [
+        self.bottlenecks = nn.Sequential(*[
             Bottleneck(in_c, hid_c, out_c, activation, conv) for _ in range(stack_size)
-        ]
-        for i, bottleneck in enumerate(self.bottlenecks, 1):
-            self.add_module(f"bottleneck{i}", bottleneck)
+        ])
 
     def forward(self, x):
-        for bottleneck in self.bottlenecks:
-            x = bottleneck(x)
-        return x
+        return self.bottlenecks(x)
 
 
 class ResidualBlock(nn.Module):
@@ -74,16 +67,12 @@ class ResidualBlock(nn.Module):
 class ResidualStack(nn.Module):
     def __init__(self, in_c, hid_c, out_c, stack_size, activation, conv):
         super().__init__()
-        self.res_blocks = [
+        self.res_blocks = nn.Sequential(*[
             ResidualBlock(in_c, hid_c, out_c, activation, conv) for _ in range(stack_size)
-        ]
-        for i, res_block in enumerate(self.res_blocks, 1):
-            self.add_module(f"res_block{i}", res_block)
+        ])
 
     def forward(self, x):
-        for res_block in self.res_blocks:
-            x = res_block(x)
-        return x
+        return self.res_blocks(x)
 
 
 class CSPResidualBlock(nn.Module):
@@ -150,7 +139,4 @@ class SPP(nn.Module):
 
     def forward(self, x):
         x = self.c1(x)
-        m1 = self.m1(x)
-        m2 = self.m2(x)
-        m3 = self.m3(x)
-        return self.c2(torch.cat([x, m1, m2, m3], dim=1))
+        return self.c2(torch.cat([x, self.m1(x), self.m2(x), self.m3(x)], dim=1))
