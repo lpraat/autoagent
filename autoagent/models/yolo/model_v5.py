@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from typing import List
 from autoagent.models.yolo.layers import (
-    Focus, Conv, CSPResidualBlock, Bottleneck, SPP, CSPBottleneckBlock
+    Focus, Conv, CSPResidualBlock, SPP, CSPBottleneckBlock
 )
 
 
@@ -52,7 +52,7 @@ class YoloHead(nn.Module):
         # SPP
         self.spp = SPP(get_c(1024), get_c(1024), activation=act, conv=conv)
 
-        # # Top-down (PAN (a))
+        # Top-down (PAN (a))
         self.cspbn1 = CSPBottleneckBlock(get_c(1024), get_c(1024), get_d(3), activation=act, conv=conv)
         self.c1 = conv(get_c(1024), get_c(512), 1, activation=act)
         self.u1 = nn.Upsample(scale_factor=2, mode='nearest')
@@ -61,7 +61,7 @@ class YoloHead(nn.Module):
         self.c2 = conv(get_c(512), get_c(256), 1, activation=act)
         self.u2 = nn.Upsample(scale_factor=2, mode='nearest')
 
-        # # Bottom-up (PAN (b))
+        # Bottom-up (PAN (b))
         self.cspbn3 = CSPBottleneckBlock(get_c(512), get_c(256), get_d(3), activation=act, conv=conv)
         self.c3 = conv(get_c(256), get_c(256), 3, stride=2, activation=act)
 

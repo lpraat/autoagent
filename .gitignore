@@ -17,3 +17,6 @@ external
 
 # Experiments
 exp
+
+# MacOs
+.DS_Store

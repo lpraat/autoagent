@@ -91,7 +91,6 @@ def run(model, path, img_dim, conf_thresh, nms_thresh, half_precision, cuda, vie
 
     img_exts = set(('.jpeg', '.jpg', '.png'))
 
-    # Prepare source
     if os.path.splitext(path)[1] in img_exts:
         orig_img = cv2.imread(path)
         res = run_on_img(model, orig_img, img_dim, half_precision, cuda, conf_thresh, nms_thresh, use_cache=True)
@@ -150,17 +149,17 @@ if __name__ == '__main__':
     parser.add_argument('--source', type=str, required=True,
                         help='Source file')
     parser.add_argument('--img_dim', type=int, required=True,
-                        help='Img dimension for training (no multi-scale) and eval')
+                        help='Img dimension for inference')
     parser.add_argument('--conf_thresh', type=float, required=True,
                         help='Minimum bbox acceptance threshold')
     parser.add_argument('--nms_thresh', type=float, required=True,
                         help='Non maximum supp. threshold')
     parser.add_argument('--half_precision', action='store_true',
-                        help='Whether to use half precision')
+                        help='Use half precision')
     parser.add_argument('--cuda', action='store_true',
-                        help='Whether to use gpu acceleration')
+                        help='Use gpu acceleration')
     parser.add_argument('--view_res', action='store_true',
-                        help='Whether to view the results.')
+                        help='View the results')
     parser.add_argument('--save_path', default=None,
                         help='Output path, where the results are saved.')
     args = parser.parse_args()

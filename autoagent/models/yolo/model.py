@@ -114,7 +114,7 @@ class Yolo():
             det_grids.append(pred_grid.clone())
 
             if self.det_cache is None:
-                # Auxiliary grid
+                # Auxiliary grids
                 grid_y, grid_x = torch.meshgrid([torch.arange(gy), torch.arange(gx)])
                 aux_grids.append(torch.stack([grid_x, grid_y], dim=2).view((1, 1, gy, gx, 2)).to(preds[i].device))
 
