@@ -21,7 +21,7 @@ class TestYoloUtils(unittest.TestCase):
             [*bboxes[1]],
             [*bboxes[-1]]
         ]).numpy()
-        final_bboxes = non_max_suppression(bboxes, per_class=0)
+        final_bboxes = non_max_suppression(bboxes, per_class=0, merge_conf=True)
         final_bboxes = final_bboxes.numpy()
 
         np.testing.assert_array_almost_equal(

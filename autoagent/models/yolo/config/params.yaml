@@ -1,7 +1,5 @@
 # Model Structure
-version: 'v5'
-mult_c: 0.5
-mult_d: 0.33
+version: 'v5-large'
 act: 'hswish'  # leaky, hswish
 conv: 'conv'
 init_biases: True
@@ -49,7 +47,7 @@ bbox_fn: 'sigmoid'
 # mode: 'iou'
 # iou_thresh: [0.2, 0.2, 0.2]
 
-
+# COCO names
 cls_names: [
   'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
   'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
@@ -62,6 +60,7 @@ cls_names: [
   'hair drier', 'toothbrush'
 ]
 
+# VOC names
 # cls_names: [
 #   'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat',
 #   'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person',

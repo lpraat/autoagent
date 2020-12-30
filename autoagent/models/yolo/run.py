@@ -142,7 +142,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser("YoloRun")
 
-    parser.add_argument('--ckpt', type=str, default=None,
+    parser.add_argument('--ckpt', type=str, required=True,
                         help='Checkpoint with trained weights')
     parser.add_argument('--params', type=str, required=True,
                         help='Path to params config file')

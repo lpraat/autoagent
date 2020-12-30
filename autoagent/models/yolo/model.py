@@ -11,9 +11,15 @@ class Yolo():
     def __init__(self, params):
         self.params = params
 
-        version = self.params['version']
+        s_to_mults = {
+            'small': (0.5, 0.33),
+            'medium': (0.75, 0.66),
+            'large': (1.0, 1.0)
+        }
+        version, size = self.params['version'].split("-")
         if version == 'v5':
             from autoagent.models.yolo.model_v5 import YoloModel
+            mult_c, mult_d = s_to_mults[size]
         else:
             raise NotImplementedError("Yolo model not found.")
 
@@ -28,8 +34,8 @@ class Yolo():
 
         self.model = YoloModel(
             num_classes=self.params['num_cls'],
-            mult_c=self.params['mult_c'],
-            mult_d=self.params['mult_d'],
+            mult_c=mult_c,
+            mult_d=mult_d,
             activation=s_to_act[self.params['act']],
             conv=s_to_conv[self.params['conv']]
         )
@@ -128,9 +134,8 @@ class Yolo():
             self.det_cache = (aux_grids, steps, anchor_priors)
 
         # Retrieve bboxes from prediction grid
-        bboxes = compute_final_bboxes(det_grids, conf_thresh, anchor_priors, aux_grids, steps,
-                                      with_ids=with_ids, bbox_fn=self.params['bbox_fn'])
-        return bboxes
+        return compute_final_bboxes(det_grids, conf_thresh, anchor_priors, aux_grids, steps,
+                                    with_ids=with_ids, bbox_fn=self.params['bbox_fn'])
 
 
     def get_loss(self, preds, targets):

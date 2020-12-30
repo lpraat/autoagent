@@ -222,7 +222,6 @@ def train(img_dim, multi_scale, params_file, dset_train, dset_val,
 
                 # Update progress bar
                 pbar.update()
-                break
 
         pbar.close()
 
