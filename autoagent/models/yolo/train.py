@@ -302,13 +302,13 @@ if __name__ == '__main__':
     parser.add_argument('--params', type=str, required=True,
                         help='Path to params config file')
     parser.add_argument('--data', type=str, required=True,
-                        help='Dataset name')  # TODO generalize, move to config
+                        help='Dataset name')
     parser.add_argument('--data_folder', type=str, default=None,
-                        help='Custom data folder')  # TODO
+                        help='Custom data folder')
     parser.add_argument('--img_dim', type=int, required=True,
                         help='Img dimension for training (no multi-scale) and eval')
     parser.add_argument('--multi_scale', action='store_true',
-                        help='Whether to use multi scale training')
+                        help='Use multi scale training')
     parser.add_argument('--batch_size', type=int, required=True,
                         help='Batch size')
     parser.add_argument('--aggregate', type=int, required=True,

@@ -32,7 +32,7 @@ def compute_final_bboxes(preds: List[torch.Tensor], conf_thresh: float, anchor_p
         pred[..., 4:] = torch.sigmoid(pred[..., 4:])
 
         if with_ids:
-            id = torch.zeros((batch_size, num_anchors, gy, gx, num_anchors, 1)).to(device)
+            id = torch.zeros((batch_size, num_anchors, gy, gx, 1)).to(device)
             for i in range(batch_size):
                 id[i, ...] = i
             pred = torch.cat([pred, id], -1)

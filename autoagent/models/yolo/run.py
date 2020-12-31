@@ -161,7 +161,7 @@ if __name__ == '__main__':
     parser.add_argument('--view_res', action='store_true',
                         help='View the results')
     parser.add_argument('--save_path', default=None,
-                        help='Output path, where the results are saved.')
+                        help='Output path, where the results are saved')
     args = parser.parse_args()
 
     params = parse_params(args.params)[1]

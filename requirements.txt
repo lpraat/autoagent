@@ -5,7 +5,7 @@ matplotlib
 opencv-python
 scikit-learn
 xmltodict
-PyYAML
+PyYAML==5.3
 tqdm
 tensorboard
 pandas

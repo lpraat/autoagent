@@ -10,7 +10,7 @@ class PascalVoc(Dataset):
     def __init__(self,
                  folder=os.path.join(os.path.dirname(__file__), "../../data/voc/"),
                  train=True,
-                 load_on_ram=False):
+                 load_on_ram=True):
 
         self.main_folder = folder
         self.load_on_ram = load_on_ram

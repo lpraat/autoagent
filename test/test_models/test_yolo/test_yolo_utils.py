@@ -25,6 +25,6 @@ class TestYoloUtils(unittest.TestCase):
         final_bboxes = final_bboxes.numpy()
 
         np.testing.assert_array_almost_equal(
-            target,
+            target[:, :-1],
             final_bboxes
         )
