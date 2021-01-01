@@ -6,7 +6,7 @@ Pytorch-based implementation with structural and algorithmic changes presented i
 <hr/>
 
 ## Training and Inference
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lpraat/autoagent/blob/master/autoagent/models/yolo/run_on_colab.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lpraat/autoagent/blob/master/autoagent/models/vision/yolo/run_on_colab.ipynb)
 
 
 ### References

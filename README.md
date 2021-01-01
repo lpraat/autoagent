@@ -6,4 +6,4 @@ Built for learning purposes, and for fun!
 
 ## Models
 ### Vision
-- [YOLO](autoagent/models/yolo)
+- [YOLO](autoagent/models/vision/yolo)
