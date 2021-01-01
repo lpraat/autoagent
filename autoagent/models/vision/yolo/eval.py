@@ -39,7 +39,7 @@ def eval(yolo, dloader, batch_size, aggregate, epoch, confidence_thresh, nms_thr
 
     # Progress bar
     iter_per_epoch = len(dloader.dataset)//(batch_size*aggregate)
-    titles = ['AP@0.5', f'mAP@0.5:0.95', 'BatchNum', 'Loss', 'LocLoss', 'DetLoss', 'ClsLoss', 'Precision', 'Recall']
+    titles = ['AP@0.5', 'mAP@0.5:0.95', 'BatchNum', 'Loss', 'LocLoss', 'DetLoss', 'ClsLoss', 'Precision', 'Recall']
     s_titles = "".join(f"{t:<15}" for t in titles)
     print(s_titles)
     pbar = tqdm.tqdm(total=iter_per_epoch, dynamic_ncols=True)

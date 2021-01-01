@@ -129,8 +129,9 @@ def train(img_dim, multi_scale, params_file, dset_train, dset_val,
     
     # Eventually resume training
     if ckpt_file is not None:
+        ckpt = torch.load(ckpt_file)
         if fine_tune:
-            yolo.load_state_dict(torch.load(ckpt_file), fine_tune=True)
+            yolo.load_state_dict(ckpt, fine_tune=True)
         else:
             yolo.load_state_dict(ckpt['model'])
             optim.load_state_dict(ckpt['optim'])
@@ -206,7 +207,7 @@ def train(img_dim, multi_scale, params_file, dset_train, dset_val,
 
                 train_iter = iter_num + epoch*(len(dset_train)//(batch_size*aggregate))
                 descs = [
-                    f"{epoch}/{num_epochs}", f"{train_iter}/{iter_per_epoch*num_epochs}",
+                    f"{epoch+1}/{num_epochs}", f"{train_iter}/{iter_per_epoch*num_epochs}",
                     f"{iter_num}/{iter_per_epoch}", f"{fancy_float(torch.sum(train_single_losses).item())}",
                     *(f"{fancy_float(train_single_losses[i].item())}" for i in range(3))
                 ]
