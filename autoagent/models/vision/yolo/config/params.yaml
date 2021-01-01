@@ -60,7 +60,7 @@ cls_names: [
   'hair drier', 'toothbrush'
 ]
 
-# VOC names
+# # VOC names
 # cls_names: [
 #   'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat',
 #   'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person',

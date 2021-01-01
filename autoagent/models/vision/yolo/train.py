@@ -10,11 +10,11 @@ import matplotlib.pyplot as plt
 
 from torch.utils import tensorboard
 
-from autoagent.models.yolo.config.parse_config import parse_params
+from autoagent.models.vision.yolo.config.parse_config import parse_params
 from autoagent.datasets.pascal_voc import PascalVoc
-from autoagent.models.yolo.data_wrapper import YoloDataset
-from autoagent.models.yolo.model import Yolo
-from autoagent.models.yolo.eval import eval
+from autoagent.models.vision.yolo.data_wrapper import YoloDataset
+from autoagent.models.vision.yolo.model import Yolo
+from autoagent.models.vision.yolo.eval import eval
 from autoagent.utils.general import log, fancy_float
 from autoagent.utils.torch_utils import get_num_params, warmup_params
 from autoagent.utils.optim import EMA
@@ -22,7 +22,7 @@ from autoagent.data.sampler import MultiScaleBatchSampler
 
 
 def train(img_dim, multi_scale, params_file, dset_train, dset_val,
-          batch_size, aggregate, seed, ckpt_file, num_workers):
+          batch_size, aggregate, seed, ckpt_file, fine_tune, num_workers):
     # Experiment folder
     exp_dir = (
         f"yolo-{datetime.datetime.now().strftime('%d_%m_%y_%H_%M_%S')}"
@@ -124,24 +124,26 @@ def train(img_dim, multi_scale, params_file, dset_train, dset_val,
     s = f"Model: {params['version']} with {get_num_params(yolo.model)} params\n"
     log(s, log_files)
 
+    epoch = 0
+    best_score = -1
+    
     # Eventually resume training
     if ckpt_file is not None:
-        ckpt = torch.load(ckpt_file)
-        yolo.load_state_dict(ckpt['model'])
-        optim.load_state_dict(ckpt['optim'])
-        scheduler.load_state_dict(ckpt['scheduler'])
-        epoch = ckpt['epoch']
-        ap05 = ckpt['AP@0.5']
-        ap095 = ckpt['AP@0.5:0.95']
-        s = (f"Resuming training from {ckpt_file}\n"
-             f"Last epoch: {epoch}, AP@0.5: {ap05:.4f}, AP@0.5:0.95: {ap095:.4f}\n")
-        log(s, log_files)
-        epoch += 1
-        best_score = ap05 + ap095
-    else:
-        epoch = 0
-        best_score = -1
-
+        if fine_tune:
+            yolo.load_state_dict(torch.load(ckpt_file), fine_tune=True)
+        else:
+            yolo.load_state_dict(ckpt['model'])
+            optim.load_state_dict(ckpt['optim'])
+            scheduler.load_state_dict(ckpt['scheduler'])
+            epoch = ckpt['epoch']
+            ap05 = ckpt['AP@0.5']
+            ap095 = ckpt['AP@0.5:0.95']
+            s = (f"Resuming training from {ckpt_file}\n"
+                f"Last epoch: {epoch}, AP@0.5: {ap05:.4f}, AP@0.5:0.95: {ap095:.4f}\n")
+            log(s, log_files)
+            epoch += 1
+            best_score = ap05 + ap095
+  
     # Initial params
     iter_per_epoch = len(dset_train)//(batch_size*aggregate)
 
@@ -295,6 +297,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--ckpt', type=str, default=None,
                         help='Checkpoint file to resume training')
+    parser.add_argument('--fine_tune', action='store_true',
+                        help='Fine-tune the provided ckpt')
     parser.add_argument('--num_workers', type=int, default=1,
                         help='Number of workers for data loading')
     parser.add_argument('--seed', type=int, default=None,
@@ -347,5 +351,6 @@ if __name__ == '__main__':
         aggregate=args.aggregate,
         seed=seed,
         ckpt_file=args.ckpt,
+        fine_tune=args.fine_tune,
         num_workers=args.num_workers
     )

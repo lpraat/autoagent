@@ -3,7 +3,7 @@ import numpy as np
 import tqdm
 import matplotlib.pyplot as plt
 
-from autoagent.models.yolo.utils import compute_final_bboxes, non_max_suppression
+from autoagent.models.vision.yolo.utils import compute_final_bboxes, non_max_suppression
 from autoagent.utils.obj_det_metrics import compute_ap
 from autoagent.utils.general import fancy_float
 

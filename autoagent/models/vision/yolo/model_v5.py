@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 from typing import List
-from autoagent.models.yolo.layers import (
+from autoagent.models.vision.yolo.layers import (
     Focus, Conv, CSPResidualBlock, SPP, CSPBottleneckBlock
 )
 

@@ -11,10 +11,10 @@ from typing import Tuple
 
 from torch.serialization import save
 from autoagent.data.vision.augment import Resize
-from autoagent.models.yolo.model import Yolo
-from autoagent.models.yolo.layers import Conv
-from autoagent.models.yolo.config.parse_config import parse_params
-from autoagent.models.yolo.utils import non_max_suppression
+from autoagent.models.vision.yolo.model import Yolo
+from autoagent.models.vision.yolo.layers import Conv
+from autoagent.models.vision.yolo.config.parse_config import parse_params
+from autoagent.models.vision.yolo.utils import non_max_suppression
 from autoagent.utils.torch_utils import get_num_params
 
 

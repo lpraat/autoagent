@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 
-from autoagent.models.yolo.layers import Conv
+from autoagent.models.vision.yolo.layers import Conv
 from autoagent.utils.vision_utils import compute_generalized_iou
-from autoagent.models.yolo.utils import compute_final_bboxes
+from autoagent.models.vision.yolo.utils import compute_final_bboxes
 
 
 class Yolo():
@@ -18,7 +18,7 @@ class Yolo():
         }
         version, size = self.params['version'].split("-")
         if version == 'v5':
-            from autoagent.models.yolo.model_v5 import YoloModel
+            from autoagent.models.vision.yolo.model_v5 import YoloModel
             mult_c, mult_d = s_to_mults[size]
         else:
             raise NotImplementedError("Yolo model not found.")
@@ -69,15 +69,22 @@ class Yolo():
     def state_dict(self):
         return self.model.state_dict()
 
-    def load_state_dict(self, checkpoint):
-        if list(checkpoint.keys())[0] in self.state_dict():
+    def load_state_dict(self, checkpoint, fine_tune=False):
+        n1 = ('head.fs', 'head.fm', 'head.fl')
+        n2 = ('weight', 'bias')
+        to_remove = [f"{x}.{y}" for x in n1 for y in n2] if fine_tune else []
+        self_state_dict = self.state_dict()
+        if list(checkpoint.keys())[0] in self_state_dict:
+            for key in to_remove:
+                checkpoint[key] = self_state_dict[key]
             self.model.load_state_dict(checkpoint)
         else:
             # Import weights from yolov5 repo
-            self._load_original_v5_weights(checkpoint)
+            self._load_original_v5_weights(checkpoint, to_remove)
 
-    def _load_original_v5_weights(self, v5_state_dict):
-        keys = list(self.state_dict().keys())
+    def _load_original_v5_weights(self, v5_state_dict, to_remove):
+        self_state_dict = self.state_dict()
+        keys = list(self_state_dict.keys())
 
         corrected_state_dict = {}
         idx = 0
@@ -86,8 +93,11 @@ class Yolo():
                 assert k.split(".")[-1] == keys[idx].split(".")[-1]
                 corrected_state_dict[keys[idx]] = v
                 idx += 1
-
-        self.load_state_dict(corrected_state_dict)
+          
+        for key in to_remove:
+            corrected_state_dict[key] = self_state_dict[key]
+      
+        self.model.load_state_dict(corrected_state_dict)
 
         for m in self.model.modules():
             t = type(m)

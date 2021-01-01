@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import torch
 
-from autoagent.models.yolo.utils import non_max_suppression
+from autoagent.models.vision.yolo.utils import non_max_suppression
 
 class TestYoloUtils(unittest.TestCase):
 
