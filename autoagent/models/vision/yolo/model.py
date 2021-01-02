@@ -199,24 +199,16 @@ class Yolo():
                         torch.exp(pred_w).clamp(max=1e3) * scaled_anchors[anchor_idx, 0],
                         torch.exp(pred_h).clamp(max=1e3) * scaled_anchors[anchor_idx, 1]
                     ]).t()
-
-                    target_bboxes = torch.stack([
-                        target_x, target_y,
-                        torch.exp(target_w) * scaled_anchors[anchor_idx, 0],
-                        torch.exp(target_h) * scaled_anchors[anchor_idx, 1]
-                    ]).t()
                 else:
                     pred_bboxes = torch.stack([
                         pred_x, pred_y,
-                        ((2*torch.sigmoid(pred_w)))**2 * scaled_anchors[anchor_idx, 0],
-                        ((2*torch.sigmoid(pred_h)))**2 * scaled_anchors[anchor_idx, 1]
+                        (2*torch.sigmoid(pred_w))**2 * scaled_anchors[anchor_idx, 0],
+                        (2*torch.sigmoid(pred_h))**2 * scaled_anchors[anchor_idx, 1]
                     ]).t()
 
-                    target_bboxes = torch.stack([
-                        target_x, target_y,
-                        (2*(torch.sigmoid(target_w)))**2 * scaled_anchors[anchor_idx, 0],
-                        (2*(torch.sigmoid(target_h)))**2 * scaled_anchors[anchor_idx, 1]
-                    ]).t()
+                target_bboxes = torch.stack([
+                    target_x, target_y, target_w, target_h
+                ]).t()
 
                 cious = compute_generalized_iou(pred_bboxes, target_bboxes, format='xywh', kind='ciou')
                 if reduction == 'sum':

@@ -218,8 +218,8 @@ def preprocess_y(img_idx, bboxes, classes, img_dim, num_anchors,
 
         target[y_idx, x_idx, anchor_idx, 0] = tx
         target[y_idx, x_idx, anchor_idx, 1] = ty
-        target[y_idx, x_idx, anchor_idx, 2] = torch.log(w) - torch.log(scaled_anchor_priors_w)
-        target[y_idx, x_idx, anchor_idx, 3] = torch.log(h) - torch.log(scaled_anchor_priors_h)
+        target[y_idx, x_idx, anchor_idx, 2] = w
+        target[y_idx, x_idx, anchor_idx, 3] = h
         target[y_idx, x_idx, anchor_idx, 4] = 1
         target[y_idx, x_idx, anchor_idx, 5+classes] = 1
 
