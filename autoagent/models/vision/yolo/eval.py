@@ -3,7 +3,7 @@ import numpy as np
 import tqdm
 import matplotlib.pyplot as plt
 
-from autoagent.models.vision.yolo.utils import compute_final_bboxes, non_max_suppression
+from autoagent.models.vision.yolo.utils import non_max_suppression
 from autoagent.utils.obj_det_metrics import compute_ap
 from autoagent.utils.general import fancy_float
 
@@ -31,7 +31,6 @@ def eval(yolo, dloader, batch_size, aggregate, epoch, confidence_thresh, nms_thr
     yolo.eval()
     eval_single_losses = 0  # running mean
     single_losses = 0  # tmp aggregate
-    params = yolo.params
 
     ground_truths = dict()
     detections = []

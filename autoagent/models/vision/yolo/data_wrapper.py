@@ -3,8 +3,8 @@ import torch
 import numpy as np
 import cv2
 
-from autoagent.utils.vision_utils import compute_iou, compute_iou_centered
-from autoagent.data.vision.augment import Resize, DataAugmentSeq, Identity
+from autoagent.utils.vision_utils import compute_iou_centered
+from autoagent.data.vision.augment import Resize, DataAugmentSeq
 
 
 class YoloDataset(torch.utils.data.Dataset):
@@ -209,9 +209,6 @@ def preprocess_y(img_idx, bboxes, classes, img_dim, num_anchors,
         ty = ty[idx0]
         w = w[idx0]
         h = h[idx0]
-
-        scaled_anchor_priors_w = scaled_anchor_priors[anchor_idx, 0]
-        scaled_anchor_priors_h = scaled_anchor_priors[anchor_idx, 1]
         classes = torch.tensor(classes)[idx0]
 
         target = torch.zeros((grid_size, grid_size, num_anchors, 5+num_classes), dtype=torch.float32)
@@ -410,7 +407,7 @@ def mosaic(mosaic_hw, imgs, bboxes, classes, scale, translate):
 
     mosaic_hw = tuple(x*2 for x in mosaic_hw)
     mosaic = np.zeros(mosaic_hw + (3,), dtype=np.uint8) + 127
-    w, h, c = mosaic.shape
+    w, h, _ = mosaic.shape
     center_h, center_w = [int(random.uniform(x, x*4 - x)) for x in [h/4, w/4]]
     center = (center_h, center_w)
 

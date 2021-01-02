@@ -274,8 +274,8 @@ def train(img_dim, multi_scale, params_file, dset_train, dset_val,
             'AP@0.5:0.95': eval_statistics['val/AP@0.5:0.95']
         }
 
-        last_ckpt_path = os.path.join(exp_dir, f"last_ckpt.pt")
-        best_ckpt_path = os.path.join(exp_dir, f"best_ckpt.pt")
+        last_ckpt_path = os.path.join(exp_dir, "last_ckpt.pt")
+        best_ckpt_path = os.path.join(exp_dir, "best_ckpt.pt")
 
         # Last checkpoint
         if os.path.isfile(last_ckpt_path):

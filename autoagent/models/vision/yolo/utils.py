@@ -1,7 +1,7 @@
 import torch
 import torchvision
 
-from typing import List, Tuple
+from typing import List
 
 
 @torch.jit.script

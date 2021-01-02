@@ -1,7 +1,6 @@
 import os
 import xmltodict
 import cv2
-import numpy as np
 
 from autoagent.datasets.dataset import Dataset
 
