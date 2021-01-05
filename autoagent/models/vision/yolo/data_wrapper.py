@@ -29,9 +29,7 @@ class YoloDataset(torch.utils.data.Dataset):
         if augments and np.random.rand() < self.params['mosaic_prob']:
             # Mosaic augmentation
             # Pick 3 random images + this one
-            indices = list(range(len(self)))
-            random.shuffle(indices)
-            indices = indices[:3] + [idx]
+            indices = [*(np.random.randint(0, len(self)) for _ in range(3)), idx]
             four_imgs_and_targets = [self.dataset[i] for i in indices]
             four_imgs = [el[0] for el in four_imgs_and_targets]
             four_targets = [el[1] for el in four_imgs_and_targets]
