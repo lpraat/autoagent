@@ -88,7 +88,8 @@ def train(img_dim, multi_scale, params_file, dset_train, dset_val,
         ),
         collate_fn=dset_train.collate_fn,
         num_workers=num_workers,
-        pin_memory=pin_memory
+        pin_memory=pin_memory,
+        worker_init_fn=dset_train.get_worker_init_fn(seed)
     )
 
     dloader_val = torch.utils.data.DataLoader(
@@ -100,7 +101,8 @@ def train(img_dim, multi_scale, params_file, dset_train, dset_val,
         ),
         collate_fn=dset_val.collate_fn,
         num_workers=num_workers,
-        pin_memory=pin_memory
+        pin_memory=pin_memory,
+        worker_init_fn=dset_val.get_worker_init_fn(seed)
     )
 
     # Log training info
@@ -126,7 +128,7 @@ def train(img_dim, multi_scale, params_file, dset_train, dset_val,
 
     epoch = 0
     best_score = -1
-    
+
     # Eventually resume training
     if ckpt_file is not None:
         ckpt = torch.load(ckpt_file)
@@ -144,7 +146,7 @@ def train(img_dim, multi_scale, params_file, dset_train, dset_val,
             log(s, log_files)
             epoch += 1
             best_score = ap05 + ap095
-  
+
     # Initial params
     iter_per_epoch = len(dset_train)//(batch_size*aggregate)
 
@@ -322,7 +324,7 @@ if __name__ == '__main__':
 
     # Seed everything
     if args.seed is None:
-        seed = np.random.randint(1e7)
+        seed = np.random.randint(2**16-1)
     else:
         seed = args.seed
     np.random.seed(seed)

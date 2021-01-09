@@ -19,6 +19,14 @@ class YoloDataset(torch.utils.data.Dataset):
     def __len__(self):
         return self.dataset.size
 
+    def get_worker_init_fn(self, seed):
+        def worker_init_fn(id):
+            wseed = seed + id
+            np.random.seed(wseed)
+            torch.manual_seed(wseed)
+            random.seed(wseed)
+        return worker_init_fn
+
     def __getitem__(self, idx):
         idx, img_dim = idx  # assuming we use MultiScaleBatchSampler
         img, target = self.dataset[idx]
