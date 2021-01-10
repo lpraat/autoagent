@@ -89,7 +89,7 @@ def train(img_dim, multi_scale, params_file, dset_train, dset_val,
         collate_fn=dset_train.collate_fn,
         num_workers=num_workers,
         pin_memory=pin_memory,
-        worker_init_fn=dset_train.get_worker_init_fn(seed)
+        worker_init_fn=dset_train.get_worker_init_fn()
     )
 
     dloader_val = torch.utils.data.DataLoader(
@@ -102,7 +102,7 @@ def train(img_dim, multi_scale, params_file, dset_train, dset_val,
         collate_fn=dset_val.collate_fn,
         num_workers=num_workers,
         pin_memory=pin_memory,
-        worker_init_fn=dset_val.get_worker_init_fn(seed)
+        worker_init_fn=dset_val.get_worker_init_fn()
     )
 
     # Log training info
