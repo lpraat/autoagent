@@ -76,7 +76,7 @@ class SquashedGaussianPolicy(BasicPolicy):
     Squashed (using tanh) Gaussian Policy
     with state-dependent diagonal covariance matrix
     """
-    def __init__(self, net, action_limit, log_std_bounds=(-5, 2)):
+    def __init__(self, net, action_limit, log_std_bounds=(-20, 2)):
         super().__init__()
         self.net = net
         self.log_of_two_pi = torch.tensor(np.log(2*np.pi), dtype=torch.float32)
@@ -107,7 +107,7 @@ class SquashedGaussianPolicy(BasicPolicy):
             ) + torch.log(self.action_limit)).sum(dim=1)
         return log_p
 
-    def forward(self, s, get_log_p=False, deterministic=False):
+    def forward(self, s, get_log_p=True, deterministic=False):
         net_output = self.net(s)
         mean, log_std = torch.split(net_output,
                                     int(net_output.shape[1]/2), dim=1)
