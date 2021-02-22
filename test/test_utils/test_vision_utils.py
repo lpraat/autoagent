@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import torch
 
-from autoagent.utils.vision_utils import compute_iou, compute_iou_centered, compute_generalized_iou
+from autoagent.utils.vision import compute_iou, compute_iou_centered, compute_generalized_iou
 
 class TestYolo(unittest.TestCase):
 

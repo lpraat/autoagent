@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import cv2
 
-from autoagent.utils.vision_utils import compute_iou_centered
+from autoagent.utils.vision import compute_iou_centered
 from autoagent.data.vision.augment import Resize, DataAugmentSeq
 
 

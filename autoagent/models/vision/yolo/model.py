@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from autoagent.models.vision.yolo.layers import Conv
-from autoagent.utils.vision_utils import compute_generalized_iou
+from autoagent.utils.vision import compute_generalized_iou
 from autoagent.models.vision.yolo.utils import compute_final_bboxes
 
 
@@ -93,10 +93,10 @@ class Yolo():
                 assert k.split(".")[-1] == keys[idx].split(".")[-1]
                 corrected_state_dict[keys[idx]] = v
                 idx += 1
-          
+
         for key in to_remove:
             corrected_state_dict[key] = self_state_dict[key]
-      
+
         self.model.load_state_dict(corrected_state_dict)
 
         for m in self.model.modules():

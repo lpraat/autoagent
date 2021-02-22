@@ -16,7 +16,7 @@ from autoagent.models.vision.yolo.data_wrapper import YoloDataset
 from autoagent.models.vision.yolo.model import Yolo
 from autoagent.models.vision.yolo.eval import eval
 from autoagent.utils.general import log, fancy_float
-from autoagent.utils.torch_utils import get_num_params, warmup_params
+from autoagent.utils.torch import get_num_params, warmup_params
 from autoagent.utils.optim import EMA
 from autoagent.data.sampler import MultiScaleBatchSampler
 
