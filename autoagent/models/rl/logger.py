@@ -1,5 +1,6 @@
 import pprint
 import os
+import json
 
 from torch.utils import tensorboard
 from tabulate import tabulate
@@ -9,7 +10,7 @@ class Logger:
     def __init__(
         self,
         out_dir,
-        hyper_fname='hyperparams.txt',
+        hyper_fname='hyperparams.json',
         stat_fname='statistics.csv',
         init_tb_writer=True
     ):
@@ -32,7 +33,7 @@ class Logger:
     def log_hyperparams(self, hyper_params_dict):
         with open(os.path.join(self.out_dir, self.hyper_fname),
                   encoding='utf8', mode='w') as f:
-            f.write(pprint.pformat(hyper_params_dict, indent=4))
+            json.dump(hyper_params_dict, f, indent=2)
 
     def log(self, stats_dict, step):
         if self.first_write:

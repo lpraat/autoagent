@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import numpy as np
 import os
 import datetime
@@ -64,8 +65,6 @@ class SAC:
         self.discount = discount
         self.seed = seed
 
-        # TODO yaml config instead
-
         # Eval and train environments
         self.env = lambda_env()
         self.eval_env = lambda_env()
@@ -101,30 +100,37 @@ class SAC:
         self.target_q2 = lambda_qfunc()
         self.target_q2.load_state_dict(self.q2.state_dict())
 
-        # Alpha/Action entropy
+        # Alpha - Action entropy weight
         self.log_alpha = torch.tensor(np.log(init_alpha), requires_grad=True)
         self.target_entropy = -self.env.action_space.shape[0]
         self.opt_log_alpha = torch.optim.Adam([self.log_alpha], lr)
 
-
         # Setup the statistics logger
-        out_dir_exp_name = (get_env_identifier(self.env)
-                            + "_"
-                            + datetime.datetime.now().strftime("%d_%m_%y_%H_%M_%S")
-                            + "_"
-                            + f"seed-{seed}")
-
+        now_str = datetime.datetime.now().strftime("%d_%m_%y_%H_%M_%S")
+        out_dir_exp_name = f"{now_str}_seed_{seed}"
         out_dir = os.path.abspath(
             os.path.join(
                 os.path.dirname(__file__),
                 "../runs",
                 out_dir_name,
+                get_env_identifier(self.env),
                 out_dir_exp_name
             )
         )
 
         self.stat_logger = Logger(out_dir)
-        self.stat_logger.log_hyperparams(locals())
+        hyperparams = {}
+        _locals = {
+            **locals(),
+            'policy': self.policy,
+            'qfunc': self.q1,
+        }
+        for key, value in _locals.items():
+            if type(value) is int or type(value) is str:
+                hyperparams[key] = value
+            elif issubclass(type(value), nn.Module):
+                hyperparams[key] = value.__str__()
+        self.stat_logger.log_hyperparams(hyperparams)
 
     def eval(self, eval_step=10, deterministic=True):
         """
@@ -247,14 +253,15 @@ class SAC:
                 self.update()
 
             if ((step+1) % self.steps_per_epoch == 0):
-                epoch = int((step+1) / self.steps_per_epoch)
+                epoch = int(step / self.steps_per_epoch)
 
                 average_return = self.eval(eval_step=10)
                 stoch_average_return = total_r / episodes
                 execution_time = time.perf_counter() - t0
 
                 self.stat_logger.log(dict(
-                    Epoch=epoch,
+                    Epoch=epoch+1,
+                    TotalSteps=step+1,
                     AverageReturn=average_return,
                     StochasticAverageReturn=stoch_average_return,
                     ExecutionTime=execution_time,

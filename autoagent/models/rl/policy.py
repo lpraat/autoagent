@@ -7,6 +7,9 @@ from torch.distributions.normal import Normal
 
 
 class BasicPolicy(nn.Module):
+    def __init__(self):
+        super().__init__()
+        
     def forward(self, s, get_log_p=True, deterministic=False):
         raise NotImplementedError()
 
