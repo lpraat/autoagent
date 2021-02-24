@@ -108,7 +108,7 @@ class SAC:
         # Setup the statistics logger
         now_str = datetime.datetime.now().strftime("%d_%m_%y_%H_%M_%S")
         out_dir_exp_name = f"{now_str}_seed_{seed}"
-        out_dir = os.path.abspath(
+        self.out_dir = os.path.abspath(
             os.path.join(
                 os.path.dirname(__file__),
                 "../runs",
@@ -118,7 +118,7 @@ class SAC:
             )
         )
 
-        self.stat_logger = Logger(out_dir)
+        self.stat_logger = Logger(self.out_dir)
         hyperparams = {}
         _locals = {
             **locals(),
@@ -221,6 +221,7 @@ class SAC:
         episode_r = 0
         total_r = 0
         episodes = 0
+        best_average_return = -np.inf
         t0 = time.perf_counter()
 
         for step in range(self.epochs * self.steps_per_epoch):
@@ -258,6 +259,12 @@ class SAC:
                 average_return = self.eval(eval_step=10)
                 stoch_average_return = total_r / episodes
                 execution_time = time.perf_counter() - t0
+
+                if average_return > best_average_return:
+                    best_average_return = average_return
+                    torch.save(self.policy.state_dict(), os.path.join(self.out_dir, 'best_policy.pt'))
+
+                torch.save(self.policy.state_dict(), os.path.join(self.out_dir, 'last_policy.pt'))
 
                 self.stat_logger.log(dict(
                     Epoch=epoch+1,
