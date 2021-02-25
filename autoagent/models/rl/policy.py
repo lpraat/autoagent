@@ -32,7 +32,7 @@ class CategoricalPolicy(BasicPolicy):
         probs = nn.functional.softmax(self.net(s), dim=1)
         cat = Categorical(probs=probs)
         if deterministic:
-            a = torch.argmax(probs)
+            a = torch.argmax(probs, dim=1)
         else:
             a = cat.sample()
         log_p = cat.log_prob(a) if get_log_p else None
