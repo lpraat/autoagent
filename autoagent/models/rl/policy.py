@@ -9,7 +9,7 @@ from torch.distributions.normal import Normal
 class BasicPolicy(nn.Module):
     def __init__(self):
         super().__init__()
-        
+
     def forward(self, s, get_log_p=True, deterministic=False):
         raise NotImplementedError()
 
@@ -84,7 +84,7 @@ class SquashedGaussianPolicy(BasicPolicy):
         self.net = net
         self.log_of_two_pi = torch.tensor(np.log(2*np.pi), dtype=torch.float32)
         self.log_of_two = torch.tensor(np.log(2), dtype=torch.float32)
-        assert action_limit > 0
+        assert (action_limit > 0).all()
         self.action_limit = torch.tensor(action_limit, dtype=torch.float32)
         self.log_std_bounds = log_std_bounds
 
