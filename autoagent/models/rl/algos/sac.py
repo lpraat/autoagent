@@ -161,7 +161,7 @@ class SAC:
 
         # Compute target for q1 and q2
         with torch.no_grad():
-            na, log_p = self.policy(ns, get_log_p=True)
+            na, log_p, _ = self.policy(ns, get_log_p=True)
             q1_target_value = self.target_q1(torch.cat([ns, na], dim=1))
             q2_target_value = self.target_q2(torch.cat([ns, na], dim=1))
             target = r + self.discount * (1 - dones) * (
@@ -192,7 +192,7 @@ class SAC:
 
     def update_actor(self, samples):
         s, *_ = samples
-        a, log_p = self.policy(s, get_log_p=True)
+        a, log_p, _ = self.policy(s, get_log_p=True)
 
         # Policy update
         self.opt_policy.zero_grad()

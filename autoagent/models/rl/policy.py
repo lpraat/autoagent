@@ -30,17 +30,17 @@ class CategoricalPolicy(BasicPolicy):
 
     def forward(self, s, get_log_p=True, deterministic=False):
         probs = nn.functional.softmax(self.net(s), dim=1)
-        cat = Categorical(probs=probs)
+        dist = Categorical(probs=probs)
         if deterministic:
             a = torch.argmax(probs, dim=1)
         else:
-            a = cat.sample()
-        log_p = cat.log_prob(a) if get_log_p else None
-        return a, log_p
+            a = dist.sample()
+        log_p = dist.log_prob(a) if get_log_p else None
+        return a, log_p, dist
 
     def log_p(self, s, a):
         probs = nn.functional.softmax(self.net(s), dim=1)
-        return Categorical(probs=probs).log_prob(a)
+        return Categorical(probs=probs).log_prob(a.squeeze())
 
     @torch.no_grad()
     def predict(self, s, deterministic=False):
@@ -62,10 +62,10 @@ class GaussianPolicy(BasicPolicy):
 
     def forward(self, s, get_log_p=True, deterministic=False):
         mean = self.mean_net(s)
-        n = Normal(mean, torch.exp(self.log_std))
-        a = mean if deterministic else n.sample()
-        log_p = n.log_prob(a).sum(dim=1) if get_log_p else None
-        return a, log_p
+        dist = Normal(mean, torch.exp(self.log_std))
+        a = mean if deterministic else dist.sample()
+        log_p = dist.log_prob(a).sum(dim=1) if get_log_p else None
+        return a, log_p, dist
 
     def log_p(self, s, a):
         return Normal(self.mean_net(s), torch.exp(self.log_std)).log_prob(a).sum(dim=1)
@@ -124,7 +124,7 @@ class SquashedGaussianPolicy(BasicPolicy):
         squashed_a = torch.tanh(a) * self.action_limit
 
         log_p = self._compute_log_p(a, mean, log_std) if get_log_p else None
-        return squashed_a, log_p
+        return squashed_a, log_p, (mean, log_std)
 
     def log_p(self, s, a):
         a = torch.clamp(a / self.action_limit, -1+1e-7, 1-1e-7)

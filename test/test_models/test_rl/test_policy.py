@@ -21,7 +21,7 @@ class TestPolicy(unittest.TestCase):
             policy = CategoricalPolicy(d)
             for _ in range(5):
                 s = torch.randn(size=(1, s_size))
-                a, log_p = policy(s, get_log_p=True)
+                a, log_p, _= policy(s, get_log_p=True)
                 np.testing.assert_almost_equal(
                     log_p.detach().numpy(),
                     policy.log_p(s, a).detach().numpy()
@@ -40,7 +40,7 @@ class TestPolicy(unittest.TestCase):
             policy = GaussianPolicy(d)
             for _ in range(5):
                 s = torch.randn(size=(1, s_size))
-                a, log_p = policy(s, get_log_p=True)
+                a, log_p, _ = policy(s, get_log_p=True)
                 np.testing.assert_almost_equal(
                     log_p.detach().numpy(),
                     policy.log_p(s, a).detach().numpy()
@@ -56,10 +56,10 @@ class TestPolicy(unittest.TestCase):
                 output_size=a_size*2
             )
 
-            policy = SquashedGaussianPolicy(d, action_limit=np.random.randint(1, 10))
+            policy = SquashedGaussianPolicy(d, action_limit=np.random.randint(1, 10, a_size))
             for _ in range(5):
                 s = torch.randn(size=(1, s_size))
-                a, log_p = policy(s, get_log_p=True)
+                a, log_p, _= policy(s, get_log_p=True)
                 np.testing.assert_almost_equal(
                     log_p.detach().numpy(),
                     policy.log_p(s, a).detach().numpy(),
