@@ -5,45 +5,9 @@ import os
 import datetime
 import time
 
+from autoagent.models.rl.trajectory import ReplayMemory
 from autoagent.models.rl.utils import get_env_identifier
 from autoagent.models.rl.logger import Logger
-
-
-class ReplayMemory:
-    def __init__(self, size, num_features, action_dim):
-        self.size = int(size)
-        self.samples_added = 0
-        self.num_features = int(num_features)
-        self.action_dim = int(action_dim)
-        self.curr_index = 0
-
-        self.states = np.empty((self.size, self.num_features), dtype=np.float32)
-        self.actions = np.empty((self.size, self.action_dim), dtype=np.float32)
-        self.rewards = np.empty((self.size, 1), dtype=np.float32)
-        self.next_states = np.empty((self.size, self.num_features), dtype=np.float32)
-        self.dones = np.empty((self.size, 1), dtype=np.float32)
-
-    def add_sample(self, sample):
-        s, a, r, ns, d = sample
-        self.states[self.curr_index] = s
-        self.actions[self.curr_index] = a
-        self.rewards[self.curr_index] = r
-        self.next_states[self.curr_index] = ns
-        self.dones[self.curr_index] = d
-
-        self.samples_added += 1
-        self.curr_index = (self.curr_index + 1) % self.size
-
-    def sample_batch(self, batch_size):
-        random_indices = np.random.randint(min(self.samples_added, self.size), size=batch_size)
-        return (
-            self.states[random_indices],
-            self.actions[random_indices],
-            self.rewards[random_indices],
-            self.next_states[random_indices],
-            self.dones[random_indices],
-        )
-
 
 class SAC:
     """
@@ -54,6 +18,41 @@ class SAC:
                  max_episode_len, steps_per_epoch, uniform_steps, init_alpha=0.2,
                  batch_size=256, lr=3e-4, tau=0.005, buff_size=1e6, discount=0.99,
                  seed=None, out_dir_name='sac'):
+        """
+
+        Parameters
+        ----------
+        lambda_env : Callable
+            Callable to create the environment
+        lambda_qfunc : Callable
+            Callable to create the q-function approximator
+        lambda_policy : Callable
+            Callable to create the policy
+        epochs : int
+            Number of training epochs
+        max_episode_len : int
+            Maximum episode length
+        steps_per_epoch : int
+            Number of training steps per epoch
+        uniform_steps : int
+            Number of steps where the agent acts randomly
+        init_alpha : float, optional
+            Initial alpha (action entropy weight), by default 0.2
+        batch_size : int, optional
+            Batch size per update, by default 256
+        lr : float, optional
+            Learning rate for policy, q-function, alpha optimization, by default 3e-4
+        tau : float, optional
+            Smooth update factor for critic optimization, by default 0.005
+        buff_size : , optional
+            Size of the replay memory, by default 1e6
+        discount : float, optional
+            Discount factor, by default 0.99
+        seed : int, optional
+            Random seed, by default None
+        out_dir_name : str, optional
+            Statistics output dir name, by default 'sac'
+        """
         self.epochs = epochs
         self.max_episode_len = max_episode_len
         self.steps_per_epoch = steps_per_epoch

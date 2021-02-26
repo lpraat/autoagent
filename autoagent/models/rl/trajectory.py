@@ -2,6 +2,42 @@ import torch
 import numpy as np
 
 
+class ReplayMemory:
+    def __init__(self, size, num_features, action_dim):
+        self.size = int(size)
+        self.samples_added = 0
+        self.num_features = int(num_features)
+        self.action_dim = int(action_dim)
+        self.curr_index = 0
+
+        self.states = np.empty((self.size, self.num_features), dtype=np.float32)
+        self.actions = np.empty((self.size, self.action_dim), dtype=np.float32)
+        self.rewards = np.empty((self.size, 1), dtype=np.float32)
+        self.next_states = np.empty((self.size, self.num_features), dtype=np.float32)
+        self.dones = np.empty((self.size, 1), dtype=np.float32)
+
+    def add_sample(self, sample):
+        s, a, r, ns, d = sample
+        self.states[self.curr_index] = s
+        self.actions[self.curr_index] = a
+        self.rewards[self.curr_index] = r
+        self.next_states[self.curr_index] = ns
+        self.dones[self.curr_index] = d
+
+        self.samples_added += 1
+        self.curr_index = (self.curr_index + 1) % self.size
+
+    def sample_batch(self, batch_size):
+        random_indices = np.random.randint(min(self.samples_added, self.size), size=batch_size)
+        return (
+            self.states[random_indices],
+            self.actions[random_indices],
+            self.rewards[random_indices],
+            self.next_states[random_indices],
+            self.dones[random_indices],
+        )
+
+
 def gae(gamma, lambd, vfuncs, states, rewards, boot_value):
     """
     Generalized Advantage Estimation
