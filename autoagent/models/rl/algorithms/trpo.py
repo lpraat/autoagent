@@ -144,7 +144,7 @@ class TRPO:
 
         # Weights & Biases logging
         self.wandb_proj = wandb_proj
-        name = f"{env_id}_sac_{now_str}"
+        name = f"{env_id}_trpo_{now_str}"
         if self.wandb_proj is not None:
             wandb.init(
                 project=self.wandb_proj,
