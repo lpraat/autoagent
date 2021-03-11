@@ -63,5 +63,5 @@ class TestPolicy(unittest.TestCase):
                 np.testing.assert_almost_equal(
                     log_p.detach().numpy(),
                     policy.log_p(s, a).detach().numpy(),
-                    decimal=5
+                    decimal=2
                 )
