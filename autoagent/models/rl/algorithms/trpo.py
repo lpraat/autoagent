@@ -152,7 +152,7 @@ class TRPO:
                 config={
                     **hyperparams,
                     'env_id': env_id,
-                    'algorithm': 'sac'
+                    'algorithm': 'trpo'
                 }
             )
 
