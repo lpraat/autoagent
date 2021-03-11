@@ -4,6 +4,7 @@ import numpy as np
 import os
 import datetime
 import time
+import wandb
 
 from autoagent.models.rl.trajectory import ReplayMemory
 from autoagent.models.rl.utils import get_env_identifier
@@ -17,7 +18,7 @@ class SAC:
     def __init__(self, lambda_env, lambda_qfunc, lambda_policy, epochs,
                  max_episode_len, steps_per_epoch, uniform_steps, init_alpha=0.2,
                  batch_size=256, lr=3e-4, tau=0.005, buff_size=1e6, discount=0.99,
-                 seed=None, out_dir_name='sac'):
+                 seed=None, out_dir_name='sac', wandb_proj='RL_Benchmarks'):
         """
 
         Parameters
@@ -52,6 +53,9 @@ class SAC:
             Random seed, by default None
         out_dir_name : str, optional
             Statistics output dir name, by default 'sac'
+        wandb_proj : str, optional
+            Project name to log to, on Weights & Biases, by default RL_Benchmarks.
+            Set this to None to avoid logging on W&B.
         """
         self.epochs = epochs
         self.max_episode_len = max_episode_len
@@ -107,29 +111,47 @@ class SAC:
         # Setup the statistics logger
         now_str = datetime.datetime.now().strftime("%d_%m_%y_%H_%M_%S")
         out_dir_exp_name = f"{now_str}_seed_{seed}"
+        env_id = get_env_identifier(self.env)
         self.out_dir = os.path.abspath(
             os.path.join(
                 os.path.dirname(__file__),
                 "../runs",
                 out_dir_name,
-                get_env_identifier(self.env),
+                env_id,
                 out_dir_exp_name
             )
         )
-
         self.stat_logger = Logger(self.out_dir)
-        hyperparams = {}
-        _locals = {
-            **locals(),
-            'policy': self.policy,
-            'qfunc': self.q1,
+        hyperparams = {
+            'epochs': epochs,
+            'max_episode_len': max_episode_len,
+            'steps_per_epoch': steps_per_epoch,
+            'uniform_steps': uniform_steps,
+            'init_alpha': init_alpha,
+            'batch_size': batch_size,
+            'lr': lr,
+            'tau': tau,
+            'buff_size': buff_size,
+            'discount': discount,
+            'seed': seed,
+            'policy': self.policy.__str__(),
+            'qfunc': self.q1.__str__(),
         }
-        for key, value in _locals.items():
-            if type(value) is int or type(value) is str:
-                hyperparams[key] = value
-            elif issubclass(type(value), nn.Module):
-                hyperparams[key] = value.__str__()
         self.stat_logger.log_hyperparams(hyperparams)
+
+        # Weights & Biases logging
+        self.wandb_proj = wandb_proj
+        name = f"{env_id}_sac_{now_str}"
+        if self.wandb_proj is not None:
+            wandb.init(
+                project=self.wandb_proj,
+                name=name,
+                config={
+                    **hyperparams,
+                    'env_id': env_id,
+                    'algorithm': 'sac'
+                }
+            )
 
     def eval(self, eval_step=10, deterministic=True):
         """
@@ -265,17 +287,22 @@ class SAC:
 
                 torch.save(self.policy.state_dict(), os.path.join(self.out_dir, 'last_policy.pt'))
 
-                self.stat_logger.log(dict(
+                log_dict = dict(
                     Epoch=epoch+1,
                     TotalSteps=step+1,
                     AverageReturn=average_return,
                     StochasticAverageReturn=stoch_average_return,
                     ExecutionTime=execution_time,
                     Alpha=torch.exp(self.log_alpha).item()
-                ), step=epoch)
+                )
+
+                self.stat_logger.log(log_dict, step=epoch)
+                if self.wandb_proj:
+                    wandb.log(log_dict)
 
                 episodes = 0
                 total_r = 0
                 t0 = time.perf_counter()
 
         self.stat_logger.close()
+        wandb.finish()

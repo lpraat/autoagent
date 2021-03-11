@@ -17,6 +17,7 @@ external
 
 # Experiments
 exp
+wandb
 
 # MacOs
 .DS_Store

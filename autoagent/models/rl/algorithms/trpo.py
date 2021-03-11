@@ -3,8 +3,8 @@ import gym
 import numpy as np
 import os
 import datetime
+import wandb
 import time
-import torch.nn as nn
 
 from autoagent.utils.torch import assign_flat_params
 from autoagent.models.rl.utils import get_env_identifier
@@ -20,7 +20,7 @@ class TRPO:
     def __init__(self, epochs, lambda_env, lambda_policy, lambda_vfunc, n_samples,
                  n_env, max_epidose_len, gamma=0.995, lambd=0.98, vfunc_lr=1e-2, vfunc_iters=5,
                  vfunc_batch_size=64, cg_iters=10, cg_damping=0.1, kl_thresh=0.01,
-                 use_multiprocessing=False, out_dir_name='trpo', seed=None):
+                 use_multiprocessing=False, out_dir_name='trpo', seed=None, wandb_proj='RL_Benchmarks'):
         """
 
         Parameters
@@ -62,6 +62,9 @@ class TRPO:
             Statistics output folder, by default 'trpo'
         seed : int, optional
             Random seed, by default None
+        wandb_proj : str, optional
+            Project name to log to, on Weights & Biases, by default rl_bench.
+            Set this to None to avoid logging on W&B.
         """
         self.epochs = epochs
         self.max_episode_len = max_epidose_len
@@ -119,18 +122,39 @@ class TRPO:
         )
 
         self.stat_logger = Logger(self.out_dir)
-        hyperparams = {}
-        _locals = {
-            **locals(),
-            'policy': self.policy,
-            'vfunc': self.vfunc,
+        hyperparams = {
+            'epochs': epochs,
+            'n_samples': n_samples,
+            'n_env': n_env,
+            'max_episode_len': max_epidose_len,
+            'gamma': gamma,
+            'lambd': lambd,
+            'vfunc_lr': vfunc_lr,
+            'vfunc_iters': vfunc_iters,
+            'vfunc_batch_size': vfunc_batch_size,
+            'cg_iters': cg_iters,
+            'cg_damping': cg_damping,
+            'kl_thresh': kl_thresh,
+            'use_multiprocessing': use_multiprocessing,
+            'seed': seed,
+            'policy': self.policy.__str__(),
+            'vfunc': self.vfunc.__str__(),
         }
-        for key, value in _locals.items():
-            if type(value) is int or type(value) is str:
-                hyperparams[key] = value
-            elif issubclass(type(value), nn.Module):
-                hyperparams[key] = value.__str__()
         self.stat_logger.log_hyperparams(hyperparams)
+
+        # Weights & Biases logging
+        self.wandb_proj = wandb_proj
+        name = f"{env_id}_sac_{now_str}"
+        if self.wandb_proj is not None:
+            wandb.init(
+                project=self.wandb_proj,
+                name=name,
+                config={
+                    **hyperparams,
+                    'env_id': env_id,
+                    'algorithm': 'sac'
+                }
+            )
 
     def eval(self, eval_step=10):
         total_reward = 0
@@ -317,16 +341,20 @@ class TRPO:
             torch.save(self.policy.state_dict(), os.path.join(self.out_dir, 'last_policy.pt'))
 
             # Log statistics
-            self.stat_logger.log(dict(
-                    Epoch=epoch,
-                    NumSamples=num_samples,
-                    ExecutionTime=execution_time,
-                    AverageReturn=average_return,
-                    BacktrackSuccess=success,
-                    BacktrackIters=backtrack_iters,
-                ), step=epoch)
+            log_dict = dict(
+                Epoch=epoch,
+                NumSamples=num_samples,
+                ExecutionTime=execution_time,
+                AverageReturn=average_return,
+                BacktrackSuccess=int(success),
+                BacktrackIters=backtrack_iters,
+            )
+            self.stat_logger.log(log_dict, step=epoch)
+            if self.wandb_proj:
+                wandb.log(log_dict)
 
         self.stat_logger.close()
+        wandb.finish()
 
 
     @staticmethod
