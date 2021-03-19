@@ -24,7 +24,7 @@ class TestPolicy(unittest.TestCase):
                 a, log_p, _= policy(s, get_log_p=True)
                 np.testing.assert_almost_equal(
                     log_p.detach().numpy(),
-                    policy.log_p(s, a).detach().numpy()
+                    policy.log_p(s, a)[0].detach().numpy()
                 )
 
     def test_gaussian_policy(self):
@@ -43,7 +43,7 @@ class TestPolicy(unittest.TestCase):
                 a, log_p, _ = policy(s, get_log_p=True)
                 np.testing.assert_almost_equal(
                     log_p.detach().numpy(),
-                    policy.log_p(s, a).detach().numpy()
+                    policy.log_p(s, a)[0].detach().numpy()
                 )
 
     def test_squashed_gaussian_policy(self):
@@ -62,6 +62,6 @@ class TestPolicy(unittest.TestCase):
                 a, log_p, _= policy(s, get_log_p=True)
                 np.testing.assert_almost_equal(
                     log_p.detach().numpy(),
-                    policy.log_p(s, a).detach().numpy(),
+                    policy.log_p(s, a)[0].detach().numpy(),
                     decimal=2
                 )
