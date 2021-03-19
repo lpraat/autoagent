@@ -40,7 +40,8 @@ class CategoricalPolicy(BasicPolicy):
 
     def log_p(self, s, a):
         probs = nn.functional.softmax(self.net(s), dim=1)
-        return Categorical(probs=probs).log_prob(a.squeeze())
+        dist = Categorical(probs=probs)
+        return dist.log_prob(a.squeeze()), dist
 
     @torch.no_grad()
     def predict(self, s, deterministic=False):
@@ -68,7 +69,8 @@ class GaussianPolicy(BasicPolicy):
         return a, log_p, dist
 
     def log_p(self, s, a):
-        return Normal(self.mean_net(s), torch.exp(self.log_std)).log_prob(a).sum(dim=1)
+        dist = Normal(self.mean_net(s), torch.exp(self.log_std))
+        return dist.log_prob(a).sum(dim=1), dist
 
     def predict(self, s, deterministic=False):
         return self(s, get_log_p=False, deterministic=deterministic)[0]

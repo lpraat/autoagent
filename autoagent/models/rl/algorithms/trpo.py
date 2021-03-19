@@ -208,15 +208,16 @@ class TRPO:
 
             # TRPO optimization
             # Fixed log probs
-            old_log_prob = self.policy.log_p(
+            old_log_prob, _ = self.policy.log_p(
                 states, actions
-            ).detach()
+            )
+            old_log_prob = old_log_prob.detach()
 
             def compute_gain():
                 """
                 Computes the gain of the new policy w.r.t the old one
                 """
-                new_log_prob = self.policy.log_p(
+                new_log_prob, _ = self.policy.log_p(
                     states, actions
                 )
                 gain = torch.mean(
