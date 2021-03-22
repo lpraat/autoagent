@@ -37,7 +37,7 @@ class TestPolicy(unittest.TestCase):
                 output_size=a_size
             )
 
-            policy = GaussianPolicy(d)
+            policy = GaussianPolicy(d, a_size)
             for _ in range(5):
                 s = torch.randn(size=(1, s_size))
                 a, log_p, _ = policy(s, get_log_p=True)
