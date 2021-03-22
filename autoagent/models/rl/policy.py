@@ -64,7 +64,7 @@ class GaussianPolicy(BasicPolicy):
     def forward(self, s, get_log_p=True, deterministic=False):
         mean = self.mean_net(s)
         dist = Normal(mean, torch.exp(self.log_std))
-        a = mean if deterministic else dist.sample()
+        a = mean if deterministic else dist.rsample()
         log_p = dist.log_prob(a).sum(dim=1) if get_log_p else None
         return a, log_p, dist
 
