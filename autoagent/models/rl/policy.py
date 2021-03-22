@@ -52,12 +52,12 @@ class GaussianPolicy(BasicPolicy):
     """
     Gaussian policy with state-independent diagonal covariance matrix
     """
-    def __init__(self, mean_net, log_std_init=-0.5):
+    def __init__(self, mean_net, action_shape, log_std_init=-0.5):
         super().__init__()
         self.mean_net = mean_net
         self.log_std = nn.Parameter(
             log_std_init * torch.ones(
-                self.mean_net[-1].out_features, dtype=torch.float32
+                action_shape, dtype=torch.float32
             )
         )
 
@@ -72,6 +72,7 @@ class GaussianPolicy(BasicPolicy):
         dist = Normal(self.mean_net(s), torch.exp(self.log_std))
         return dist.log_prob(a).sum(dim=1), dist
 
+    @torch.no_grad()
     def predict(self, s, deterministic=False):
         return self(s, get_log_p=False, deterministic=deterministic)[0]
 
