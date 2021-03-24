@@ -16,7 +16,7 @@ class SAC:
     https://arxiv.org/pdf/1812.05905.pdf
     """
     def __init__(self, lambda_env, lambda_qfunc, lambda_policy, epochs,
-                 max_episode_len, steps_per_epoch, uniform_steps, init_alpha=0.2,
+                 steps_per_epoch, uniform_steps, init_alpha=0.2,
                  batch_size=256, lr=3e-4, tau=0.005, buff_size=1e6, discount=0.99,
                  seed=None, out_dir_name='sac', wandb_proj='RL_Benchmarks'):
         """
@@ -31,8 +31,6 @@ class SAC:
             Callable to create the policy
         epochs : int
             Number of training epochs
-        max_episode_len : int
-            Maximum episode length
         steps_per_epoch : int
             Number of training steps per epoch
         uniform_steps : int
@@ -58,7 +56,6 @@ class SAC:
             Set this to None to avoid logging on W&B.
         """
         self.epochs = epochs
-        self.max_episode_len = max_episode_len
         self.steps_per_epoch = steps_per_epoch
         self.uniform_steps = uniform_steps
         self.batch_size = batch_size
@@ -124,7 +121,6 @@ class SAC:
         self.stat_logger = Logger(self.out_dir)
         hyperparams = {
             'epochs': epochs,
-            'max_episode_len': max_episode_len,
             'steps_per_epoch': steps_per_epoch,
             'uniform_steps': uniform_steps,
             'init_alpha': init_alpha,
@@ -162,7 +158,7 @@ class SAC:
 
             episode_r = 0
             s = self.eval_env.reset()
-            for _ in range(self.max_episode_len):
+            while True:
                 a = self.policy.predict(
                     torch.tensor(s, dtype=torch.float32).unsqueeze(0),
                     deterministic=deterministic
@@ -238,7 +234,6 @@ class SAC:
 
     def run(self):
         s = self.env.reset()
-        episode_len = 0
         episode_r = 0
         total_r = 0
         episodes = 0
@@ -253,19 +248,19 @@ class SAC:
                 # Random warmup
                 a = self.env.action_space.sample()
 
-            ns, r, d, _ = self.env.step(a)
-            episode_len += 1
+            ns, r, d, info = self.env.step(a)
             episode_r += r
 
-            self.buff.add_sample((s, a, r, ns, d))
+            # Bootstrap q-value in case of a time limit
+            buff_done = d and not info.get('TimeLimit.truncated', False)
+            self.buff.add_sample((s, a, r, ns, buff_done))
 
-            if d is True or episode_len == self.max_episode_len:
+            if d:
                 s = self.env.reset()
 
                 episodes += 1
                 total_r += episode_r
 
-                episode_len = 0
                 episode_r = 0
             else:
                 s = ns

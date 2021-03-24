@@ -9,6 +9,7 @@ import time
 from autoagent.models.rl.utils import get_env_identifier
 from autoagent.models.rl.trajectory import collect_trajectories_with_gae
 from autoagent.models.rl.logger import Logger
+from autoagent.models.rl.env import GymEnv
 
 
 class PPO:
@@ -17,8 +18,8 @@ class PPO:
     https://arxiv.org/pdf/1707.06347.pdf
     """
     def __init__(self, epochs, lambda_env, lambda_policy, lambda_vfunc, n_samples,
-                 n_env, max_epidose_len, iters=5, lr=3e-4, ent_bonus=0.01, batch_size=None,
-                 clip_eps=0.2, gamma=0.995, lambd=0.98, use_multiprocessing=False,
+                 n_env, env_wrappers=[], iters=5, lr=3e-4, ent_bonus=0.01, batch_size=None,
+                 clip_eps=0.2, gamma=0.995, lambd=0.98, use_multiprocessing=False, device='cpu',
                  out_dir_name='ppo', seed=None, wandb_proj='RL_Benchmarks'):
         """
 
@@ -37,8 +38,8 @@ class PPO:
             (Total number of samples collected per epoch = n_samples * n_env)
         n_env : int
             Number of parallel (vectorized) environments
-        max_epidose_len : int
-            Maximum steps per episode
+        env_wrappers : list[Callable]
+            List of environment wrappers provided as callables, by default []
         iters : int
             Number of iterations on epoch samples per policy/value function update, by default 5
         lr : float
@@ -56,6 +57,8 @@ class PPO:
             GAE lambd, by default 0.98
         use_multiprocessing : bool, optional
             Whether to use asynchronous environments, by default False
+        device : str
+            Target device where to run tensor computations, by default 'cpu'
         out_dir_name : str, optional
             Statistics output folder, by default 'ppo'
         seed : int, optional
@@ -65,7 +68,6 @@ class PPO:
             Set this to None to avoid logging on W&B.
         """
         self.epochs = epochs
-        self.max_episode_len = max_epidose_len
         self.n_env = n_env
         self.n_samples = n_samples
         self.iters = iters
@@ -77,34 +79,35 @@ class PPO:
         self.gamma = gamma
         self.lambd = lambd
         self.use_multiprocessing = use_multiprocessing
+        self.device = device
 
-        self.env = lambda_env()
-        self.eval_env = lambda_env()
-        self.ob_shape = self.env.observation_space.shape[0]
+        self.gym_env = GymEnv(lambda_env, env_wrappers, n_env, use_multiprocessing)
+        self.env = self.gym_env.env
+        self.eval_env = self.gym_env.eval_env
+        self.ob_shape = np.prod(self.env.observation_space.shape)
         if type(self.env.action_space) is gym.spaces.Discrete:
             self.ac_shape = 1
         else:
             self.ac_shape = self.env.action_space.shape[0]
         env_id = get_env_identifier(self.env)
         # Vectorized env
-        self.vec_env = gym.vector.make(
-            env_id, num_envs=self.n_env, asynchronous=self.use_multiprocessing
-        )
+        self.vec_env = self.gym_env.vec_env
 
         # Seed everything
         if seed is None:
             seed = np.random.randint(2**16-1)
         np.random.seed(seed)
-        self.env.seed(seed)
-        self.vec_env.seed(seed)
+        self.gym_env.seed(seed)
         torch.manual_seed(seed)
 
         # Policy
         self.policy = lambda_policy()
+        self.policy.to(device)
         self.opt_policy = torch.optim.Adam(self.policy.parameters(), self.lr)
 
         # Value function
         self.vfunc = lambda_vfunc()
+        self.vfunc.to(device)
         self.opt_vfunc = torch.optim.Adam(self.vfunc.parameters(), self.lr)
 
         # Setup the statistics logger
@@ -125,7 +128,6 @@ class PPO:
             'epochs': epochs,
             'n_samples': n_samples,
             'n_env': n_env,
-            'max_episode_len': max_epidose_len,
             'gamma': gamma,
             'lambd': lambd,
             'iters': iters,
@@ -160,10 +162,10 @@ class PPO:
 
             episode_r = 0
             s = self.eval_env.reset()
-            for _ in range(self.max_episode_len):
+            while True:
                 a = self.policy.predict(
-                    torch.tensor(s, dtype=torch.float32).unsqueeze(0),
-                ).numpy().ravel()
+                    torch.tensor(s, dtype=torch.float32, device=self.device).unsqueeze(0),
+                ).to('cpu').numpy().ravel()
                 if type(self.eval_env.action_space) is gym.spaces.Discrete:
                     a = a[0]
 
@@ -185,10 +187,15 @@ class PPO:
             t0 = time.perf_counter()
 
             # Collect trajectories
-            va = lambda s: self.vfunc(torch.tensor(s, dtype=torch.float32))
+            act_call = lambda s: self.policy.predict(
+                torch.tensor(s, dtype=torch.float32, device=self.device)
+            ).to('cpu').numpy()
+            vfunc_call = lambda s: self.vfunc(
+                torch.tensor(s, dtype=torch.float32, device=self.device)
+            ).to('cpu')
             res = collect_trajectories_with_gae(
-                self.vec_env, self.policy, va,
-                self.gamma, self.lambd, self.n_samples, self.ob_shape, self.ac_shape, self.max_episode_len
+                self.vec_env, act_call, vfunc_call,
+                self.gamma, self.lambd, self.n_samples, self.ob_shape, self.ac_shape
             )
 
             # Reshpe and to tensor for downstream computations
@@ -205,7 +212,16 @@ class PPO:
             advantages = (advantages - advantages.mean()) / advantages.std()
 
             # Optimization
-            dataset = torch.utils.data.TensorDataset(states, actions, advantages, targets)
+            dataset = torch.utils.data.TensorDataset(states, actions)
+            dloader = torch.utils.data.DataLoader(
+                dataset,
+                batch_size=64,
+                shuffle=False,
+                drop_last=False
+            )
+            old_log_prob = torch.cat([self.policy.log_p(mb_states, mb_actions)[0] for mb_states, mb_actions in dloader]).detach()
+
+            dataset = torch.utils.data.TensorDataset(states, actions, old_log_prob, advantages, targets)
             dloader = torch.utils.data.DataLoader(
                 dataset,
                 batch_size=self.batch_size,
@@ -213,16 +229,19 @@ class PPO:
                 drop_last=True
             )
             for _ in range(self.iters):
-                for mb_states, mb_actions, mb_advantages, mb_targets in dloader:
+                for mb_states, mb_actions, mb_old_log_prob, mb_advantages, mb_targets in dloader:
                     self.opt_vfunc.zero_grad()
                     self.opt_policy.zero_grad()
 
+                    mb_states = mb_states.to(self.device)
+                    mb_actions = mb_actions.to(self.device)
+                    mb_advantages = mb_advantages.to(self.device)
+                    mb_targets = mb_targets.to(self.device)
+
                     # Policy
-                    old_log_prob, _ = self.policy.log_p(mb_states, mb_actions)
-                    old_log_prob = old_log_prob.detach()
                     new_log_prob, dist = self.policy.log_p(mb_states, mb_actions)
                     # ratio = target / fixed
-                    ratio = torch.exp(new_log_prob - old_log_prob)
+                    ratio = torch.exp(new_log_prob - mb_old_log_prob)
                     policy_loss = - (
                         torch.mean(torch.min(
                             ratio*mb_advantages,

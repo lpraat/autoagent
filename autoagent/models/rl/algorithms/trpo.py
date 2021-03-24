@@ -10,6 +10,7 @@ from autoagent.utils.torch import assign_flat_params
 from autoagent.models.rl.utils import get_env_identifier
 from autoagent.models.rl.trajectory import collect_trajectories_with_gae
 from autoagent.models.rl.logger import Logger
+from autoagent.models.rl.env import GymEnv
 
 
 class TRPO:
@@ -18,7 +19,7 @@ class TRPO:
     https://arxiv.org/pdf/1502.05477.pdf
     """
     def __init__(self, epochs, lambda_env, lambda_policy, lambda_vfunc, n_samples,
-                 n_env, max_epidose_len, gamma=0.995, lambd=0.98, vfunc_lr=1e-2, vfunc_iters=5,
+                 n_env, env_wrappers=[], gamma=0.995, lambd=0.98, vfunc_lr=1e-2, vfunc_iters=5,
                  vfunc_batch_size=64, cg_iters=10, cg_damping=0.1, kl_thresh=0.01,
                  use_multiprocessing=False, out_dir_name='trpo', seed=None, wandb_proj='RL_Benchmarks'):
         """
@@ -38,8 +39,8 @@ class TRPO:
             (Total number of samples collected per epoch = n_samples * n_env)
         n_env : int
             Number of parallel (vectorized) environments
-        max_epidose_len : int
-            Maximum steps per episode
+        env_wrappers : list[Callable]
+            List of environment wrappers provided as callables, by default []
         gamma : float, optional
             Discount factor, by default 0.995
         lambd : float, optional
@@ -67,7 +68,6 @@ class TRPO:
             Set this to None to avoid logging on W&B.
         """
         self.epochs = epochs
-        self.max_episode_len = max_epidose_len
         self.n_env = n_env
         self.n_samples = n_samples
         self.gamma = gamma
@@ -80,18 +80,17 @@ class TRPO:
         self.kl_thresh = kl_thresh
         self.use_multiprocessing = use_multiprocessing
 
-        self.env = lambda_env()
-        self.eval_env = lambda_env()
-        self.ob_shape = self.env.observation_space.shape[0]
+        self.gym_env = GymEnv(lambda_env, env_wrappers, n_env, use_multiprocessing)
+        self.env = self.gym_env.env
+        self.eval_env = self.gym_env.eval_env
+        self.ob_shape = np.prod(self.env.observation_space.shape[0])
         if type(self.env.action_space) is gym.spaces.Discrete:
             self.ac_shape = 1
         else:
             self.ac_shape = self.env.action_space.shape[0]
         env_id = get_env_identifier(self.env)
         # Vectorized env
-        self.vec_env = gym.vector.make(
-            env_id, num_envs=self.n_env, asynchronous=self.use_multiprocessing
-        )
+        self.vec_env = self.gym_env.vec_env
 
         # Seed everything
         if seed is None:
@@ -126,7 +125,6 @@ class TRPO:
             'epochs': epochs,
             'n_samples': n_samples,
             'n_env': n_env,
-            'max_episode_len': max_epidose_len,
             'gamma': gamma,
             'lambd': lambd,
             'vfunc_lr': vfunc_lr,
@@ -162,7 +160,7 @@ class TRPO:
 
             episode_r = 0
             s = self.eval_env.reset()
-            for _ in range(self.max_episode_len):
+            while True:
                 a = self.policy.predict(
                     torch.tensor(s, dtype=torch.float32).unsqueeze(0),
                 ).numpy().ravel()
@@ -187,10 +185,15 @@ class TRPO:
             t0 = time.perf_counter()
 
             # Collect trajectories
-            va = lambda s: self.vfunc(torch.tensor(s, dtype=torch.float32))
+            act_call = lambda s: self.policy.predict(
+                torch.tensor(s, dtype=torch.float32)
+            ).numpy()
+            vfunc_call = lambda s: self.vfunc(
+                torch.tensor(s, dtype=torch.float32)
+            )
             res = collect_trajectories_with_gae(
-                self.vec_env, self.policy, va,
-                self.gamma, self.lambd, self.n_samples, self.ob_shape, self.ac_shape, self.max_episode_len
+                self.vec_env, act_call, vfunc_call,
+                self.gamma, self.lambd, self.n_samples, self.ob_shape, self.ac_shape
             )
 
             # Reshpe and to tensor for downstream computations

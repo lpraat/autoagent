@@ -3,6 +3,9 @@ import numpy as np
 
 
 class ReplayMemory:
+    """
+    Standard replay buffer
+    """
     def __init__(self, size, num_features, action_dim):
         self.size = int(size)
         self.samples_added = 0
@@ -85,8 +88,8 @@ def gae(gamma, lambd, vfuncs, states, rewards, boot_value):
     return targets, advantages
 
 
-def collect_trajectories_with_gae(vec_env, policy, vfunc, gamma, lambd, num_samples,
-                                  ob_shape, ac_shape, max_steps_per_episode=None):
+def collect_trajectories_with_gae(vec_env, act, vfunc, gamma, lambd, num_samples,
+                                  ob_shape, ac_shape):
     """
     Collects sample trajectories, computing targets and advantages using GAE.
 
@@ -94,22 +97,20 @@ def collect_trajectories_with_gae(vec_env, policy, vfunc, gamma, lambd, num_samp
     ----------
     vec_env : (gym.vector.AsyncVectorEnv | gym.vector.SyncVectorEnv)
         Vectorized gym-like environment
-    policy : torch.nn.Module
-        Behavioral policy
-    vfunc : torch.nn.Module
-        Value function approximator
+    act : Callable
+        Callable that drives the action selection
+    vfunc : Callable
+        Callable to call the value-function on a state
     gamma : float
         Discount factor
     lambd : float
         Gae lambda
     num_samples : int
         The total number of samples (trajectory steps) to collect
-    ob_shape : # TODO
-        Observation shape
+    ob_shape : int
+        Observation shape, should be passed as np.prod(observation_shape)
     ac_shape : int
         Action shape
-    max_steps_per_episode : int, optional
-        Maximum number of steps per episode, by default None
 
     Returns
     -------
@@ -123,37 +124,35 @@ def collect_trajectories_with_gae(vec_env, policy, vfunc, gamma, lambd, num_samp
     targets = np.zeros((num_envs, num_samples), dtype=np.float32)
     advantages = np.zeros((num_envs, num_samples), dtype=np.float32)
     starts = np.zeros((num_envs), dtype=np.int32)
-    num_steps = np.zeros((num_envs), dtype=np.int32)
     count = 0
 
     s = vec_env.reset()
     while count < num_samples:
         states[:, count] = s.reshape(*states[:, count].shape)
 
-        a = policy.predict(torch.tensor(s, dtype=torch.float32)).numpy()
+        a = act(s)
         actions[:, count] = a.reshape(*actions[:, count].shape)
 
-        ns, r, d, _ = vec_env.step(a)
+        # NOTE: envs where d is True are automatically reset by the gym vector wrapper
+        ns, r, d, info = vec_env.step(a)
+
+        # Real dones (not due to time limits)
+        real_d = [d[i] and not info[i].get('TimeLimit.truncated', False) for i in range(num_envs)]
 
         rewards[:, count] = r
-        num_steps += 1
         count += 1
 
         # Augmented dones, here done can be True if
-        # - environment done is True
-        # - we reached the eventually-defined max_steps_per_episode
+        # - environment done is True (either because of a real end or a time limit)
         # - we collected enough samples (count == num_samples)
-        aug_d = [
-            i for i in range(len(d))
-            if d[i] or (count==num_samples) or
-            (max_steps_per_episode is not None and num_steps[i] == max_steps_per_episode)
-        ]
+        aug_d = [i for i in range(num_envs) if d[i] or (count==num_samples)]
 
         if aug_d:
             # We have atleast one complete trajectory to process
             vfuncs = [vfunc(states[env_idx, starts[env_idx]:count]) for env_idx in aug_d]
             boot_values = [
-                vfunc(ns[env_idx]) if not d[env_idx] else 0
+                # Boostrap in case the done is due to a time limit
+                0 if real_d[env_idx] else vfunc(ns[env_idx])
                 for env_idx in aug_d
             ]
             gae_traj = [
@@ -168,11 +167,6 @@ def collect_trajectories_with_gae(vec_env, policy, vfunc, gamma, lambd, num_samp
         # Update starts
         starts[aug_d] = count
 
-        # Reset environments where done is True
-        for env_idx in aug_d:
-            _ns = vec_env.envs[i].reset()
-            ns[env_idx] = _ns
-            num_steps[env_idx] = 0
         s = ns
 
     return states, actions, rewards, targets, advantages
