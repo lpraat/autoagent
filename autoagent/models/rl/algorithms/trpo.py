@@ -211,10 +211,11 @@ class TRPO:
 
             # TRPO optimization
             # Fixed log probs
-            old_log_prob, _ = self.policy.log_p(
+            old_log_prob, dist = self.policy.log_p(
                 states, actions
             )
             old_log_prob = old_log_prob.detach()
+            entropy = dist.entropy().mean().detach().numpy()
 
             def compute_gain():
                 """
@@ -312,7 +313,7 @@ class TRPO:
 
             # Backtracking to ensure improvement and *exact* KL constraint
             # after the update
-            success, params, backtrack_iters = TRPO.backtracking(
+            success, params, backtrack_iters, gain, kl = TRPO.backtracking(
                 self.policy, compute_gain, compute_kl, self.kl_thresh, x, 1/lagrange_mult
             )
 
@@ -349,7 +350,10 @@ class TRPO:
                 Epoch=epoch,
                 NumSamples=num_samples,
                 ExecutionTime=execution_time,
+                AveragePolicyEntropy=entropy,
                 AverageReturn=average_return,
+                PolicyGain=gain,
+                PolicyKL=kl,
                 BacktrackSuccess=int(success),
                 BacktrackIters=backtrack_iters,
             )
@@ -464,8 +468,8 @@ class TRPO:
                             and new_constrain < constrain_thresh)
 
             if valid_update:
-                return True, new_params, i
+                return True, new_params, i, improvement, new_constrain
 
         # We have not found a suitable step in max_iters
         assign_flat_params(model, old_params)
-        return False, old_params, i
+        return False, old_params, i, improvement, new_constrain

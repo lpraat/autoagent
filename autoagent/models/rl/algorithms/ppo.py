@@ -215,11 +215,15 @@ class PPO:
             dataset = torch.utils.data.TensorDataset(states, actions)
             dloader = torch.utils.data.DataLoader(
                 dataset,
-                batch_size=64,
+                batch_size=states.shape[0] if self.device == 'cpu' else 64,
                 shuffle=False,
                 drop_last=False
             )
-            old_log_prob = torch.cat([self.policy.log_p(mb_states, mb_actions)[0] for mb_states, mb_actions in dloader]).detach()
+
+            old_log_prob = torch.cat([
+              self.policy.log_p(mb_states.to(self.device), mb_actions.to(self.device))[0].to('cpu')
+              for mb_states, mb_actions in dloader
+            ]).detach()
 
             dataset = torch.utils.data.TensorDataset(states, actions, old_log_prob, advantages, targets)
             dloader = torch.utils.data.DataLoader(
@@ -228,6 +232,11 @@ class PPO:
                 shuffle=True,
                 drop_last=True
             )
+
+            policy_losses = []
+            vfunc_losses = []
+            approx_kls = []
+            entropies = []
             for _ in range(self.iters):
                 for mb_states, mb_actions, mb_old_log_prob, mb_advantages, mb_targets in dloader:
                     self.opt_vfunc.zero_grad()
@@ -237,16 +246,18 @@ class PPO:
                     mb_actions = mb_actions.to(self.device)
                     mb_advantages = mb_advantages.to(self.device)
                     mb_targets = mb_targets.to(self.device)
+                    mb_old_log_prob = mb_old_log_prob.to(self.device)
 
                     # Policy
                     new_log_prob, dist = self.policy.log_p(mb_states, mb_actions)
                     # ratio = target / fixed
                     ratio = torch.exp(new_log_prob - mb_old_log_prob)
+                    entropy = dist.entropy().mean()
                     policy_loss = - (
                         torch.mean(torch.min(
                             ratio*mb_advantages,
                             torch.clamp(ratio, 1-self.clip_eps, 1+self.clip_eps)*mb_advantages
-                        )) + self.ent_bonus * dist.entropy().mean()
+                        )) + self.ent_bonus * entropy
                     )
                     policy_loss.backward()
 
@@ -258,6 +269,11 @@ class PPO:
 
                     self.opt_vfunc.step()
                     self.opt_policy.step()
+
+                    entropies.append(entropy.to('cpu').detach().numpy())
+                    policy_losses.append(policy_loss.to('cpu').detach().numpy())
+                    vfunc_losses.append(vfunc_loss.to('cpu').detach().numpy())
+                    approx_kls.append((mb_old_log_prob - new_log_prob).mean().to('cpu').detach().numpy())
 
             # Eval current policy
             average_return = self.eval(eval_step=10)
@@ -277,6 +293,11 @@ class PPO:
                 NumSamples=num_samples,
                 ExecutionTime=execution_time,
                 AverageReturn=average_return,
+                AveragePolicyEntropy=np.mean(entropies),
+                AveragePolicyLoss=np.mean(policy_losses),
+                AverageVfuncLoss=np.mean(vfunc_losses),
+                AveragePolicyKL=np.mean(approx_kls),
+                CudaMemory_GB=torch.cuda.memory_allocated() * 1e-9 if self.device == 'cuda' else 0
             )
             self.stat_logger.log(log_dict, step=epoch)
             if self.wandb_proj:
