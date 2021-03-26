@@ -85,10 +85,11 @@ class SquashedGaussianPolicy(BasicPolicy):
     def __init__(self, net, action_limit, log_std_bounds=(-20, 2)):
         super().__init__()
         self.net = net
-        self.log_of_two_pi = torch.tensor(np.log(2*np.pi), dtype=torch.float32)
-        self.log_of_two = torch.tensor(np.log(2), dtype=torch.float32)
+        self.register_buffer('log_of_two_pi', torch.tensor(np.log(2*np.pi), dtype=torch.float32))
+        self.register_buffer('log_of_two', torch.tensor(np.log(2), dtype=torch.float32))
         assert (action_limit > 0).all()
-        self.action_limit = torch.tensor(action_limit, dtype=torch.float32)
+        self.register_buffer('action_limit', torch.tensor(action_limit, dtype=torch.float32))
+        self.register_buffer('device_holder', torch.zeros(0, dtype=torch.uint8))
         self.log_std_bounds = log_std_bounds
 
     def _compute_log_p(self, a, mean, log_std):
@@ -122,7 +123,7 @@ class SquashedGaussianPolicy(BasicPolicy):
         if deterministic:
             a = mean
         else:
-            a = mean + torch.randn(mean.size()) * torch.exp(log_std)
+            a = mean + torch.randn(mean.size(), device=self.device_holder.device) * torch.exp(log_std)
 
         squashed_a = torch.tanh(a) * self.action_limit
 

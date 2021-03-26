@@ -9,16 +9,17 @@ import wandb
 from autoagent.models.rl.trajectory import ReplayMemory
 from autoagent.models.rl.utils import get_env_identifier
 from autoagent.models.rl.logger import Logger
+from autoagent.models.rl.env import GymEnv
 
 class SAC:
     """
     Soft Actor Critic
     https://arxiv.org/pdf/1812.05905.pdf
     """
-    def __init__(self, lambda_env, lambda_qfunc, lambda_policy, epochs,
-                 steps_per_epoch, uniform_steps, init_alpha=0.2,
+    def __init__(self, lambda_env, lambda_qfunc, lambda_policy,
+                 epochs, steps_per_epoch, uniform_steps, env_wrappers=[], init_alpha=0.2,
                  batch_size=256, lr=3e-4, tau=0.005, buff_size=1e6, discount=0.99,
-                 seed=None, out_dir_name='sac', wandb_proj='RL_Benchmarks'):
+                 device='cpu', seed=None, out_dir_name='sac', wandb_proj='RL_Benchmarks'):
         """
 
         Parameters
@@ -35,6 +36,8 @@ class SAC:
             Number of training steps per epoch
         uniform_steps : int
             Number of steps where the agent acts randomly
+        env_wrappers : list[Callable]
+            List of environment wrappers provided as callables, by default []
         init_alpha : float, optional
             Initial alpha (action entropy weight), by default 0.2
         batch_size : int, optional
@@ -47,6 +50,8 @@ class SAC:
             Size of the replay memory, by default 1e6
         discount : float, optional
             Discount factor, by default 0.99
+        device : str
+            Target device where to run tensor computations, by default 'cpu'
         seed : int, optional
             Random seed, by default None
         out_dir_name : str, optional
@@ -64,44 +69,49 @@ class SAC:
         self.buff_size = buff_size
         self.discount = discount
         self.seed = seed
+        self.device = device
 
-        # Eval and train environments
-        self.env = lambda_env()
-        self.eval_env = lambda_env()
+        self.gym_env = GymEnv(lambda_env, env_wrappers, 1, False)
+        self.env = self.gym_env.env
+        self.eval_env = self.gym_env.eval_env
 
         # Seed everything
         if seed is None:
             seed = np.random.randint(2**16-1)
         np.random.seed(seed)
-        self.env.seed(seed)
-        self.eval_env.seed(seed)
+        self.gym_env.seed(seed)
         torch.manual_seed(seed)
 
         # Init replay buffer
         self.buff = ReplayMemory(
             size=buff_size,
-            num_features=self.env.observation_space.shape[0],
+            num_features=np.prod(self.env.observation_space.shape),
             action_dim=self.env.action_space.shape[0]
         )
 
         # Actor
         self.policy = lambda_policy()
+        self.policy.to(self.device)
         self.opt_policy = torch.optim.Adam(self.policy.parameters(), lr)
 
         # Critic
         self.q1 = lambda_qfunc()
+        self.q1.to(self.device)
         self.opt_q1 = torch.optim.Adam(self.q1.parameters(), lr)
         self.q2 = lambda_qfunc()
+        self.q2.to(self.device)
         self.opt_q2 = torch.optim.Adam(self.q2.parameters(), lr)
 
         # Target critic
         self.target_q1 = lambda_qfunc()
+        self.target_q1.to(self.device)
         self.target_q1.load_state_dict(self.q1.state_dict())
         self.target_q2 = lambda_qfunc()
+        self.target_q2.to(self.device)
         self.target_q2.load_state_dict(self.q2.state_dict())
 
         # Alpha - Action entropy weight
-        self.log_alpha = torch.tensor(np.log(init_alpha), requires_grad=True)
+        self.log_alpha = torch.tensor(np.log(init_alpha), requires_grad=True, device=self.device)
         self.target_entropy = -self.env.action_space.shape[0]
         self.opt_log_alpha = torch.optim.Adam([self.log_alpha], lr)
 
@@ -160,9 +170,9 @@ class SAC:
             s = self.eval_env.reset()
             while True:
                 a = self.policy.predict(
-                    torch.tensor(s, dtype=torch.float32).unsqueeze(0),
+                    torch.tensor(s, dtype=torch.float32, device=self.device).unsqueeze(0),
                     deterministic=deterministic
-                ).numpy().ravel()
+                ).to('cpu').numpy().ravel()
                 s, r, d, _ = self.eval_env.step(a)
                 episode_r += r
 
@@ -198,6 +208,8 @@ class SAC:
         q2_loss.backward()
         self.opt_q2.step()
 
+        return q1_loss.to('cpu').detach().numpy(), q2_loss.to('cpu').detach().numpy()
+
     def update_target_critic(self):
         # Smooth target1 update
         for p_target, p in zip(self.target_q1.parameters(), self.q1.parameters()):
@@ -225,12 +237,15 @@ class SAC:
         alpha_loss.backward()
         self.opt_log_alpha.step()
 
+        return pol_loss.to('cpu').detach().numpy(), alpha_loss.to('cpu').detach().numpy()
+
     def update(self):
         batch = self.buff.sample_batch(self.batch_size)
-        samples = [torch.from_numpy(el) for el in batch]
-        self.update_critic(samples)
-        self.update_actor(samples)
+        samples = [torch.from_numpy(el).to(self.device) for el in batch]
+        q1_loss, q2_loss = self.update_critic(samples)
+        policy_loss, alpha_loss = self.update_actor(samples)
         self.update_target_critic()
+        return q1_loss, q2_loss, policy_loss, alpha_loss
 
     def run(self):
         s = self.env.reset()
@@ -239,11 +254,13 @@ class SAC:
         episodes = 0
         best_average_return = -np.inf
         t0 = time.perf_counter()
+        q1_losses, q2_losses = [], []
+        policy_losses, alpha_losses = [], []
 
         for step in range(self.epochs * self.steps_per_epoch):
             if step > self.uniform_steps:
-                a = self.policy.predict(torch.tensor(s, dtype=torch.float32).unsqueeze(0))
-                a = a.numpy().ravel()
+                a = self.policy.predict(torch.tensor(s, dtype=torch.float32, device=self.device).unsqueeze(0))
+                a = a.to('cpu').numpy().ravel()
             else:
                 # Random warmup
                 a = self.env.action_space.sample()
@@ -267,7 +284,11 @@ class SAC:
 
             # Do not update during warmup
             if step > self.uniform_steps:
-                self.update()
+                q1_loss, q2_loss, policy_loss, alpha_loss = self.update()
+                q1_losses.append(q1_loss)
+                q2_losses.append(q2_loss)
+                policy_losses.append(policy_loss)
+                alpha_losses.append(alpha_loss)
 
             if ((step+1) % self.steps_per_epoch == 0):
                 epoch = int(step / self.steps_per_epoch)
@@ -286,6 +307,10 @@ class SAC:
                     Epoch=epoch+1,
                     TotalSteps=step+1,
                     AverageReturn=average_return,
+                    AverageQ1Loss=np.mean(q1_losses),
+                    AverageQ2Loss=np.mean(q2_losses),
+                    AveragePolicyLoss=np.mean(policy_losses),
+                    AverageAlphaLoss=np.mean(alpha_losses),
                     StochasticAverageReturn=stoch_average_return,
                     ExecutionTime=execution_time,
                     Alpha=torch.exp(self.log_alpha).item()
@@ -297,6 +322,8 @@ class SAC:
 
                 episodes = 0
                 total_r = 0
+                q1_losses, q2_losses = [], []
+                policy_losses, alpha_losses = [], []
                 t0 = time.perf_counter()
 
         self.stat_logger.close()
