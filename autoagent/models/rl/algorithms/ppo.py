@@ -212,16 +212,18 @@ class PPO:
             advantages = (advantages - advantages.mean()) / advantages.std()
 
             # Optimization
+            pin_memory = self.device == 'cuda'
             dataset = torch.utils.data.TensorDataset(states, actions)
             dloader = torch.utils.data.DataLoader(
                 dataset,
                 batch_size=states.shape[0] if self.device == 'cpu' else 64,
                 shuffle=False,
-                drop_last=False
+                drop_last=False,
+                pin_memory=pin_memory
             )
 
             old_log_prob = torch.cat([
-              self.policy.log_p(mb_states.to(self.device), mb_actions.to(self.device))[0].to('cpu')
+              self.policy.log_p(mb_states.to(self.device, non_blocking=pin_memory), mb_actions.to(self.device, non_blocking=pin_memory))[0].to('cpu')
               for mb_states, mb_actions in dloader
             ]).detach()
 
@@ -230,7 +232,8 @@ class PPO:
                 dataset,
                 batch_size=self.batch_size,
                 shuffle=True,
-                drop_last=True
+                drop_last=True,
+                pin_memory=pin_memory
             )
 
             policy_losses = []
@@ -242,11 +245,11 @@ class PPO:
                     self.opt_vfunc.zero_grad()
                     self.opt_policy.zero_grad()
 
-                    mb_states = mb_states.to(self.device)
-                    mb_actions = mb_actions.to(self.device)
-                    mb_advantages = mb_advantages.to(self.device)
-                    mb_targets = mb_targets.to(self.device)
-                    mb_old_log_prob = mb_old_log_prob.to(self.device)
+                    mb_states = mb_states.to(self.device, non_blocking=pin_memory)
+                    mb_actions = mb_actions.to(self.device, non_blocking=pin_memory)
+                    mb_advantages = mb_advantages.to(self.device, non_blocking=pin_memory)
+                    mb_targets = mb_targets.to(self.device, non_blocking=pin_memory)
+                    mb_old_log_prob = mb_old_log_prob.to(self.device, non_blocking=pin_memory)
 
                     # Policy
                     new_log_prob, dist = self.policy.log_p(mb_states, mb_actions)
